@@ -8,14 +8,10 @@
 
 (defn logo []
   (let [lang (subscribe [:application/form-language])]
-    [:img.logo
-     (case @lang
-       :fi {:src "/hakemus/images/opintopolku_large-fi.png"
-            :alt "Opintopolku.fi"}
-       :sv {:src "/hakemus/images/opintopolku_large-sv.png"
-            :alt "Studieinfo.fi"}
-       :en {:src "/hakemus/images/opintopolku_large-en.png"
-            :alt "Studyinfo.fi"})]))
+    (case @lang
+      :fi [:div.logo-fi {:title "Opintopolku.fi"}]
+      :sv [:div.logo-sv {:title "Studieinfo.fi"}]
+      :en [:div.logo-en {:title "Studyinfo.fi"}])))
 
 (defn- form-field-type [form-fields key]
   (->> form-fields
@@ -90,10 +86,11 @@
                     (edit-text @secret @virkailija-secret)]))))
 
 (defn status-controls []
-  (let [valid-status         (subscribe [:application/valid-status])
-        submit-status        (subscribe [:state-query [:application :submit-status]])
-        can-apply?           (subscribe [:application/can-apply?])]
-    (when @can-apply?
+  (let [valid-status  (subscribe [:application/valid-status])
+        submit-status (subscribe [:state-query [:application :submit-status]])
+        can-apply?    (subscribe [:application/can-apply?])
+        editing?      (subscribe [:state-query [:application :editing?]])]
+    (when (or @can-apply? @editing?)
       [:div.application__status-controls
        [send-button-or-placeholder @valid-status @submit-status]
        [invalid-field-status @valid-status]

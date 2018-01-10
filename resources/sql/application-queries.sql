@@ -532,6 +532,42 @@ SELECT
 FROM latest_applications AS a
 WHERE a.key = :application_key;
 
+-- name: yesql-get-latest-application-by-key-with-hakukohde-reviews
+SELECT
+  id,
+  key,
+  lang,
+  form_id                             AS form,
+  created_time,
+  content,
+  hakukohde,
+  haku,
+  person_oid,
+  secret,
+  CASE
+  WHEN ssn IS NOT NULL
+    THEN (SELECT count(*)
+          FROM latest_applications AS aa
+            JOIN forms AS f ON f.id = aa.form_id
+            JOIN latest_forms AS lf ON lf.key = f.key
+          WHERE aa.ssn = a.ssn
+                AND (:query_type = 'ALL' OR lf.organization_oid IN (:authorized_organization_oids)))
+  WHEN email IS NOT NULL
+    THEN (SELECT count(*)
+          FROM latest_applications AS aa
+            JOIN forms AS f ON f.id = aa.form_id
+            JOIN latest_forms AS lf ON lf.key = f.key
+          WHERE aa.email = a.email
+                AND (:query_type = 'ALL' OR lf.organization_oid IN (:authorized_organization_oids)))
+  END                                 AS applications_count,
+  (SELECT json_agg(json_build_object('requirement', requirement,
+                                     'state', state,
+                                     'hakukohde', hakukohde))
+   FROM application_hakukohde_reviews ahr
+   WHERE ahr.application_key = a.key) AS application_hakukohde_reviews
+FROM latest_applications AS a
+WHERE a.key = :application_key;
+
 -- name: yesql-get-latest-application-by-secret
 SELECT
   a.id,
@@ -664,71 +700,82 @@ WHERE key IN (select key from applications where id = :id)
 
 -- name: yesql-get-haut-and-hakukohteet-from-applications
 WITH filtered_applications AS (
-  SELECT
-    a.key AS key,
-    a.haku AS haku,
-    a.hakukohde AS hakukohde,
-    ar.state AS state
-  FROM latest_applications AS a
-  JOIN forms AS f ON f.id = a.form_id
-  JOIN latest_forms AS lf ON lf.key = f.key
-  JOIN application_reviews AS ar ON a.key = ar.application_key
-  WHERE a.haku IS NOT NULL
-    AND (:query_type = 'ALL' OR lf.organization_oid IN (:authorized_organization_oids))
+    SELECT
+      a.key       AS key,
+      a.haku      AS haku,
+      a.hakukohde AS hakukohde,
+      ar.state    AS state
+    FROM latest_applications AS a
+      JOIN forms AS f ON f.id = a.form_id
+      JOIN latest_forms AS lf ON lf.key = f.key
+      JOIN application_reviews AS ar ON a.key = ar.application_key
+    WHERE a.haku IS NOT NULL
+          AND (:query_type = 'ALL' OR lf.organization_oid IN (:authorized_organization_oids))
 ), unnested_hakukohde AS (
-  SELECT
-    key,
-    haku,
-    unnest(hakukohde) AS hakukohde,
-    state
-  FROM filtered_applications
-), haku_counts AS (
-  SELECT
-    haku,
-    count(key) AS application_count,
-    sum(CASE WHEN state = 'unprocessed'
-        THEN 1
-        ELSE 0 END) AS unprocessed,
-    sum(CASE WHEN state IN (:incomplete_states)
-        THEN 1
-        ELSE 0 END) AS incomplete
-  FROM filtered_applications
-  GROUP BY haku
+    SELECT
+      key,
+      haku,
+      unnest(hakukohde) AS hakukohde,
+      state
+    FROM filtered_applications
+), haku_counts AS (SELECT
+                     haku,
+                     count(key) AS application_count
+                   FROM filtered_applications
+                   GROUP BY haku
+), haku_review_complete_counts AS (
+    SELECT
+      haku,
+      count(distinct(key)) AS processed
+    FROM unnested_hakukohde
+      LEFT JOIN application_hakukohde_reviews ON unnested_hakukohde.key = application_hakukohde_reviews.application_key
+    WHERE
+      (application_hakukohde_reviews.state = 'processed' AND application_hakukohde_reviews.requirement = 'processing-state')
+      OR unnested_hakukohde.state = 'inactivated'
+    GROUP BY haku
+), hakukohde_review_complete_counts AS (
+    SELECT
+      unnested_hakukohde.hakukohde,
+      count(distinct(key)) AS processed
+    FROM unnested_hakukohde
+      LEFT JOIN application_hakukohde_reviews ON unnested_hakukohde.key = application_hakukohde_reviews.application_key
+    WHERE
+      (application_hakukohde_reviews.state = 'processed' AND application_hakukohde_reviews.requirement = 'processing-state')
+      OR unnested_hakukohde.state = 'inactivated'
+    GROUP BY unnested_hakukohde.hakukohde
 )
 SELECT
-  uhk.haku,
-  uhk.hakukohde,
-  max(hk.application_count) AS haku_application_count,
-  max(hk.unprocessed) AS haku_unprocessed,
-  max(hk.incomplete) AS haku_incomplete,
-  count(uhk.key) AS application_count,
-  sum(CASE WHEN uhk.state = 'unprocessed'
-      THEN 1
-      ELSE 0 END) AS unprocessed,
-  sum(CASE WHEN uhk.state IN (:incomplete_states)
-      THEN 1
-      ELSE 0 END) AS incomplete
-FROM unnested_hakukohde AS uhk
-JOIN haku_counts AS hk ON hk.haku = uhk.haku
-GROUP BY uhk.haku, uhk.hakukohde;
+  unnested_hakukohde.haku,
+  unnested_hakukohde.hakukohde,
+  max(haku_counts.application_count)                             AS haku_application_count,
+  count(unnested_hakukohde.key)                                  AS application_count,
+  coalesce(max(haku_review_complete_counts.processed), 0)        AS haku_processed,
+  coalesce(max(hakukohde_review_complete_counts.processed), 0)   AS processed
+FROM unnested_hakukohde
+  JOIN haku_counts ON haku_counts.haku = unnested_hakukohde.haku
+  LEFT JOIN haku_review_complete_counts ON haku_review_complete_counts.haku = unnested_hakukohde.haku
+  LEFT JOIN hakukohde_review_complete_counts ON hakukohde_review_complete_counts.hakukohde = unnested_hakukohde.hakukohde
+GROUP BY unnested_hakukohde.haku, unnested_hakukohde.hakukohde;
 
 -- name: yesql-get-direct-form-haut
 SELECT
   lf.name,
   lf.key,
-  count(a.key) AS application_count,
-  sum(CASE WHEN ar.state = 'unprocessed'
+  count(a.key)    AS application_count,
+  sum(CASE WHEN ar.state = 'inactivated' OR ahr.state = 'processed'
     THEN 1
-      ELSE 0 END) AS unprocessed,
-  sum(CASE WHEN ar.state IN (:incomplete_states)
-    THEN 1
-      ELSE 0 END) AS incomplete
-  FROM latest_applications AS a
-  JOIN forms AS f on f.id = a.form_id
-  JOIN latest_forms AS lf on lf.key = f.key
+      ELSE 0 END) AS processed
+FROM latest_applications AS a
+  JOIN forms AS f ON f.id = a.form_id
+  JOIN latest_forms AS lf ON lf.key = f.key
   JOIN application_reviews AS ar ON a.key = ar.application_key
-  WHERE a.haku IS NULL
-    AND (:query_type = 'ALL' OR lf.organization_oid IN (:authorized_organization_oids))
+  LEFT JOIN application_hakukohde_reviews AS ahr ON ahr.id = (SELECT id
+                                                              FROM application_hakukohde_reviews ahr2
+                                                              WHERE ahr2.hakukohde = 'form' AND
+                                                                    ahr2.requirement = 'processing-state' AND
+                                                                    ahr2.application_key = a.key)
+WHERE a.haku IS NULL
+      AND (:query_type = 'ALL' OR lf.organization_oid IN (:authorized_organization_oids))
 GROUP BY lf.name, lf.key;
 
 -- name: yesql-add-application-feedback<!
@@ -785,24 +832,32 @@ WHERE application_key = :application_key AND state = :state AND hakukohde = :hak
 
 -- name: yesql-applications-by-haku-and-hakukohde-oids
 SELECT
-  key,
+  la.key,
   haku,
   person_oid,
   lang,
   preferred_name,
   email,
   ssn,
-  hakukohde
-FROM latest_applications
-JOIN application_reviews ON application_key = key
-WHERE person_oid IS NOT NULL
+  hakukohde,
+  (SELECT json_agg(json_build_object('requirement', requirement,
+                                     'state', state,
+                                     'hakukohde', hakukohde))
+   FROM application_hakukohde_reviews AS ahr
+   WHERE ahr.application_key = la.key) AS application_hakukohde_reviews
+FROM latest_applications AS la
+JOIN application_reviews as ar ON ar.application_key = la.key
+JOIN forms AS f ON la.form_id = f.id
+JOIN latest_forms AS lf ON lf.key = f.key
+WHERE (:query_type = 'ALL' OR lf.organization_oid IN (:authorized_organization_oids))
+  AND person_oid IS NOT NULL
   AND haku IS NOT NULL
   AND (:haku_oid::text IS NULL OR haku = :haku_oid)
   -- Parameter list contains empty string to avoid empty lists
-  AND (array_length(ARRAY[:hakemus_oids], 1) < 2 OR key IN (:hakemus_oids))
+  AND (array_length(ARRAY[:hakemus_oids], 1) < 2 OR la.key IN (:hakemus_oids))
   AND (array_length(ARRAY[:hakukohde_oids], 1) < 2 OR ARRAY[:hakukohde_oids] && hakukohde)
   AND state <> 'inactivated'
-ORDER BY created_time DESC;
+ORDER BY la.created_time DESC;
 
 --name: yesql-applications-for-hakurekisteri
 SELECT
@@ -856,7 +911,7 @@ UPDATE application_review_notes SET removed = NOW() WHERE id = :id;
 SELECT
   haku AS haku_oid,
   key AS hakemus_oid,
-  person_oid hekilo_oid,
+  person_oid henkilo_oid,
   hakukohde AS hakukohde_oids
 FROM latest_applications
   JOIN application_reviews ON application_key = key
@@ -865,3 +920,6 @@ WHERE person_oid IS NOT NULL
   AND haku = :haku_oid
   AND state <> 'inactivated'
 ORDER BY created_time DESC;
+
+--name: yesql-get-latest-application-ids-distinct-by-person-oid
+SELECT DISTINCT ON (person_oid) id FROM latest_applications ORDER BY person_oid, id DESC;

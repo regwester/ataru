@@ -12,10 +12,10 @@
   (:import #?(:clj [java.util UUID])))
 
 (defn gender-int-to-string [gender]
-  (condp = gender
+  (case gender
     "1" "mies"
     "2" "nainen"
-    :else nil))
+    nil))
 
 (defn map-kv [m f]
   (reduce-kv #(assoc %1 %2 (f %3)) {} m))
@@ -129,14 +129,11 @@
   [vec item]
   (some #(= item %) vec))
 
-(defn after-apply-end-within-days?
-  [apply-end-long days]
-  (when apply-end-long
-    (let [now            (time/now)
-          apply-end      (from-long apply-end-long)
-          days-after-end (time/plus apply-end (time/days days))]
-      (and (time/after? now apply-end)
-           (time/after? days-after-end now)))))
-
 (defn not-blank? [s]
   (not (clojure.string/blank? s)))
+
+(defn application-in-processing? [application-hakukohde-reviews]
+  (some #(and (= "processing-state" (:requirement %))
+              (not (contains? #{"unprocessed" "information-request"}
+                              (:state %))))
+        application-hakukohde-reviews))

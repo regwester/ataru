@@ -54,7 +54,7 @@
        (not-empty (get-in db [:editor :forms key])))
      :handler select-editor-form-if-not-deleted))
 
-  (defroute #"^/lomake-editori/applications/" []
+  (defroute #"^/lomake-editori/applications/?" []
     (secretary/dispatch! "/lomake-editori/applications/incomplete"))
 
   (defroute #"^/lomake-editori/applications/incomplete/" []
@@ -87,8 +87,7 @@
     (dispatch-after-state
      :predicate
      (fn [db]
-       (some #(when (= hakukohde-oid (:oid %)) %)
-             (get-in db [:application :hakukohteet])))
+       (get-in db [:application :hakukohteet (keyword hakukohde-oid)]))
      :handler
      (fn [hakukohde]
        (dispatch [:application/select-hakukohde hakukohde])

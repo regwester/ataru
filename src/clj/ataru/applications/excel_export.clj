@@ -62,7 +62,8 @@
 
 (def ^:private form-meta-fields
   [{:label "Nimi"
-    :field :name}
+    :field :name
+    :format-fn #(some (partial get %) [:fi :sv :en])}
    {:label "Id"
     :field :id}
    {:label "Tunniste"
@@ -82,6 +83,8 @@
    {:label     "Hakemuksen tila"
     :field     :state
     :format-fn application-state-formatter}
+   {:label     "Hakukohteen käsittelyn tila"
+    :format-fn (partial hakukohde-review-formatter "processing-state")}
    {:label     "Kielitaitovaatimus"
     :format-fn (partial hakukohde-review-formatter "language-requirement")}
    {:label     "Tutkinnon kelpoisuus"
@@ -98,26 +101,45 @@
 
 (def ^:private review-headers ["Muistiinpanot" "Pisteet"])
 
+(def cell-style (atom nil))
+
+(def cell-style-quote-prefixed (atom nil))
+
+(defn- create-cell-styles!
+  [workbook]
+  (reset! cell-style
+          (doto (.createCellStyle workbook)
+            (.setWrapText true)
+            (.setVerticalAlignment VerticalAlignment/TOP)))
+  (reset! cell-style-quote-prefixed
+          (doto (.createCellStyle workbook)
+            (.setQuotePrefixed true)
+            (.setWrapText true)
+            (.setVerticalAlignment VerticalAlignment/TOP))))
+
+(defn- create-workbook-and-styles!
+  []
+  (let [workbook (XSSFWorkbook.)]
+    (create-cell-styles! workbook)
+    workbook))
+
 (defn- indexed-meta-fields
   [fields]
   (map-indexed (fn [idx field] (merge field {:column idx})) fields))
 
-(defn- set-cell-style [cell value workbook]
-  (let [cell-style (.createCellStyle workbook)]
-    (when (and (string? value)
-               (contains? #{\= \+ \- \@} (first value)))
-      (.setQuotePrefixed cell-style true))
-    (.setWrapText cell-style true)
-    (.setVerticalAlignment cell-style VerticalAlignment/TOP)
-    (.setCellStyle cell cell-style)
-    cell))
+(defn- set-cell-style [cell value]
+  (if (and (string? value)
+           (contains? #{\= \+ \- \@} (first value)))
+    (.setCellStyle cell @cell-style-quote-prefixed)
+    (.setCellStyle cell @cell-style))
+  cell)
 
 (defn- update-row-cell! [sheet row column value workbook]
   (when-let [v (not-empty (trim (str value)))]
     (-> (or (.getRow sheet row)
             (.createRow sheet row))
         (.getCell column Row$MissingCellPolicy/CREATE_NULL_AS_BLANK)
-        (set-cell-style value workbook)
+        (set-cell-style value)
         (.setCellValue v)))
   sheet)
 
@@ -403,7 +425,7 @@
     (assoc application :application-hakukohde-reviews all-reviews-with-names)))
 
 (defn export-applications [applications selected-hakukohde tarjonta-service ohjausparametrit-service]
-  (let [workbook                (XSSFWorkbook.)
+  (let [workbook                (create-workbook-and-styles!)
         form-meta-fields        (indexed-meta-fields form-meta-fields)
         form-meta-sheet         (create-form-meta-sheet workbook form-meta-fields)
         application-meta-fields (indexed-meta-fields application-meta-fields)
@@ -462,7 +484,9 @@
 (defn filename-by-form
   [form-key]
   {:post [(some? %)]}
-  (create-filename (-> form-key form-store/fetch-by-key :name)))
+  (let [form (form-store/fetch-by-key form-key)]
+    (create-filename (some #(get-in form [:name %])
+                           [:fi :sv :en]))))
 
 (defn filename-by-hakukohde
   [hakukohde-oid session organization-service tarjonta-service]

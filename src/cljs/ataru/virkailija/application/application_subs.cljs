@@ -1,7 +1,8 @@
 (ns ataru.virkailija.application.application-subs
   (:require [cljs-time.core :as t]
             [re-frame.core :as re-frame]
-            [ataru.util :as u]))
+            [ataru.util :as u]
+            [ataru.application.review-states :as review-states]))
 
 (defn- from-multi-lang [text]
   (some #(get text %) [:fi :sv :en]))
@@ -14,7 +15,7 @@
          selected-form-key   (get-in db [:application :selected-form-key])
          forms               (get-in db [:application :forms])
          applications        (get-in db [:application :applications])]
-     (or (:name (get forms selected-form-key))
+     (or (from-multi-lang (:name (get forms selected-form-key)))
          (from-multi-lang (:name selected-hakukohde))
          (from-multi-lang (:name selected-haku))
          (if (sequential? applications) (str "Löytyi " (count applications) " hakemusta"))))))
@@ -54,16 +55,25 @@
      (get-in db [:application :selected-hakukohde])
      (get-in db [:application :selected-form-key])))))
 
-(defn filter-haku-seq [haku-seq incomplete-eq]
-  (filter #(incomplete-eq (:incomplete %) 0) haku-seq))
+(defn- haku-completely-processed?
+  [haku]
+  (= (:processed haku) (:application-count haku)))
 
-(defn filter-haut [haut incomplete-eq]
-  (-> haut
-      (assoc :direct-form-haut (filter-haku-seq (:direct-form-haut haut) incomplete-eq))
-      (assoc :tarjonta-haut (filter-haku-seq (:tarjonta-haut haut) incomplete-eq))))
+(defn- filter-haut-all-not-processed [haut]
+  {:direct-form-haut (remove haku-completely-processed? (:direct-form-haut haut))
+   :tarjonta-haut (remove haku-completely-processed? (:tarjonta-haut haut))})
+
+(defn- filter-haut-all-processed [haut]
+  {:direct-form-haut (filter haku-completely-processed? (:direct-form-haut haut))
+   :tarjonta-haut (filter haku-completely-processed? (:tarjonta-haut haut))})
 
 (defn sort-haku-seq-by-unprocessed [haku-seq]
-  (sort-by :unprocessed #(compare %2 %1) haku-seq))
+  (sort
+    (fn [a b]
+      (-
+        (- (:application-count b) (:processed b))
+        (- (:application-count a) (:processed a))))
+    haku-seq))
 
 (defn sort-haku-seq-by-name [haku-seq]
   (sort-by (fn [haku]
@@ -97,7 +107,7 @@
    (when-haut
        db
        #(-> %
-            (filter-haut >)
+            (filter-haut-all-not-processed)
             (sort-haut sort-haku-seq-by-unprocessed)))))
 
 (re-frame/reg-sub
@@ -106,7 +116,7 @@
    (when-haut
        db
        #(-> %
-            (filter-haut >)
+            (filter-haut-all-not-processed)
             count-haut))))
 
 (re-frame/reg-sub
@@ -116,7 +126,7 @@
        db
        #(->
          %
-         (filter-haut =)
+         (filter-haut-all-processed)
          (sort-haut sort-haku-seq-by-name)))))
 
 (re-frame/reg-sub
@@ -125,7 +135,7 @@
    (when-haut
        db
        #(-> %
-            (filter-haut =)
+            (filter-haut-all-processed)
             count-haut))))
 
 (re-frame/reg-sub
@@ -212,49 +222,39 @@
                  (-> db :application :information-requests))
          (sort event-and-information-request-comparator))))
 
-(defn- show-email-icon-for-application? [application]
-  (and (-> application :new-application-modifications (> 0))
-       (-> application :state (= "information-request"))))
-
-(re-frame/reg-sub
-  :application/show-state-email-icon?
-  (fn [db [_ application-key]]
-    (->> db
-         :application
-         :applications
-         (filter (comp (partial = application-key) :key))
-         (first)
-         (show-email-icon-for-application?))))
-
 (re-frame/reg-sub
   :application/resend-modify-application-link-enabled?
   (fn [db _]
     (-> db :application :modify-application-link :state nil?)))
 
+(defn- filter-by-hakukohde-review
+  [application requirement-name default-state-name states-to-include]
+  (let [states (->> (:application-hakukohde-reviews application)
+                    (filter #(= requirement-name (:requirement %)))
+                    (map :state))]
+    (or
+      (not (empty? (clojure.set/intersection
+                     states-to-include
+                     (set states))))
+      (and
+        (contains? states-to-include default-state-name)
+        (or
+          (empty? states)
+          (< (count states)
+             (count (:hakukohde application))))))))
+
 (re-frame/reg-sub
   :application/filtered-applications
   (fn [db _]
-    (let [applications                (-> db :application :applications)
-          states-to-include           (-> db :application :filter set)
-          selection-states-to-include (-> db :application :selection-filter set)]
+    (let [applications                 (-> db :application :applications)
+          processing-states-to-include (-> db :application :filter set)
+          selection-states-to-include  (-> db :application :selection-filter set)]
       (filter
-       (fn [application]
-         (let [selection-states (->> (:application-hakukohde-reviews application)
-                                     (filter #(= "selection-state" (:requirement %)))
-                                     (map :state))]
-           (and
-            (contains? states-to-include (:state application))
-            (or
-             (not (empty? (clojure.set/intersection
-                           selection-states-to-include
-                           (set selection-states))))
-             (and
-              (contains? selection-states-to-include "incomplete")
-              (or
-               (empty? selection-states)
-               (< (count selection-states)
-                  (count (:hakukohde application)))))))))
-       applications))))
+        (fn [application]
+          (and
+            (filter-by-hakukohde-review application "processing-state" review-states/initial-application-hakukohde-processing-state processing-states-to-include)
+            (filter-by-hakukohde-review application "selection-state" "incomplete" selection-states-to-include)))
+        applications))))
 
 (re-frame/reg-sub
   :application/review-state-setting-enabled?

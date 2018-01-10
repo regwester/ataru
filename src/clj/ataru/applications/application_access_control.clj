@@ -90,15 +90,20 @@
 
 (defn external-applications [organization-service session haku-oid hakukohde-oid hakemus-oids]
   (session-orgs/run-org-authorized
-   session
-   organization-service
-   [:view-applications :edit-applications]
-   (constantly nil)
-   (constantly nil)
-   #(application-store/applications-for-external-api
-     haku-oid
-     hakukohde-oid
-     hakemus-oids)))
+    session
+    organization-service
+    [:view-applications :edit-applications]
+    (constantly nil)
+    #(application-store/get-external-applications
+       haku-oid
+       hakukohde-oid
+       hakemus-oids
+       %)
+    #(application-store/get-external-applications
+       haku-oid
+       hakukohde-oid
+       hakemus-oids
+       nil)))
 
 (defn hakurekisteri-applications [organization-service session haku-oid hakukohde-oids person-oids modified-after]
   (session-orgs/run-org-authorized

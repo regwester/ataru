@@ -78,14 +78,15 @@
       "/lomake-editori/applications/complete"
       (str "Käsitellyt haut" (haku-count-str @complete-count))]]))
 
-(defn haku-info-link [link-href haku-info]
+(defn haku-info-link [link-href {:keys [name application-count processed]}]
   [:a
    {:href link-href}
-   (some #(get (:name haku-info) %) [:fi :sv :en])
-   (str " (" (:application-count haku-info) ")")
-   (when (pos? (:unprocessed haku-info))
-     [:span.application__search-control-haku-unprocessed
-      (str " " (:unprocessed haku-info) " Käsittelemättä")])])
+   (some #(get name %) [:fi :sv :en])
+   (str " (" application-count ")")
+   (let [unprocessed (- application-count processed)]
+     (when (pos? unprocessed)
+       [:span.application__search-control-haku-unprocessed
+        (str " " unprocessed " Käsittelemättä")]))])
 
 (defn hakukohde-list [hakukohteet]
   [:div (map
@@ -117,7 +118,7 @@
   [:div.application__search-control-haku.application__search-control-direct-form-haku
    [haku-info-link
     (str "/lomake-editori/applications/" (:key haku))
-    (update haku :name (partial hash-map :fi))]])
+    haku]])
 
 (defn loading-indicator []
   [:div.application__search-control-loading-indicator

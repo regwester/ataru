@@ -28,8 +28,16 @@
 (declare BasicElement)
 (declare WrapperElement)
 
+(s/defschema LocalizedString {:fi                  s/Str
+                              (s/optional-key :sv) s/Str
+                              (s/optional-key :en) s/Str})
+
+(s/defschema LocalizedStringOptional {(s/optional-key :fi) s/Str
+                                      (s/optional-key :sv) s/Str
+                                      (s/optional-key :en) s/Str})
+
 (s/defschema Form {(s/optional-key :id)                s/Int
-                   :name                               s/Str
+                   :name                               LocalizedStringOptional
                    :content                            (s/pred empty?)
                    (s/optional-key :languages)         [s/Str]
                    (s/optional-key :key)               s/Str
@@ -38,14 +46,6 @@
                                                           :cljs s/Str)
                    (s/optional-key :application-count) s/Int
                    (s/optional-key :deleted)           (s/maybe s/Bool)})
-
-(s/defschema LocalizedString {:fi                  s/Str
-                              (s/optional-key :sv) s/Str
-                              (s/optional-key :en) s/Str})
-
-(s/defschema LocalizedStringOptional {(s/optional-key :fi) s/Str
-                                      (s/optional-key :sv) s/Str
-                                      (s/optional-key :en) s/Str})
 
 (s/defschema Module (s/enum :person-info))
 
@@ -135,13 +135,13 @@
    :haku-oid                           s/Str
    :haku-name                          LocalizedStringOptional
    :max-hakukohteet                    (s/maybe s/Int)
-   :is-jatkuva-haku?                   s/Bool
    :can-submit-multiple-applications   s/Bool
    (s/optional-key :default-hakukohde) FormTarjontaHakukohde
    (s/optional-key :hakuaika-dates)    {:start                               s/Int
                                         (s/optional-key :end)                (s/maybe s/Int)
                                         :on                                  s/Bool
                                         :hakukierros-end                     (s/maybe s/Int)
+                                        :jatkuva-haku?                       s/Bool
                                         :attachment-modify-grace-period-days (s/maybe s/Int)}})
 
 (s/defschema Haku
@@ -254,14 +254,19 @@
    :email s/Str
    :hakukohteet [s/Str]})
 
+(s/defschema Hakutoive
+  {:processingState   s/Str
+   :eligibilityState  s/Str
+   :paymentObligation s/Str
+   :hakukohdeOid      s/Str})
+
 (s/defschema VtsApplication
   {:oid                s/Str ; (:key application)
    :hakuOid            s/Str
    :henkiloOid         s/Str
    :asiointikieli      s/Str
-   :hakukohteet        [s/Str]
-   :email              (s/maybe s/Str)
-   :paymentObligations {s/Str s/Str}})
+   :hakutoiveet        [Hakutoive]
+   :email              (s/maybe s/Str)})
 
 (s/defschema HakurekisteriApplication
   {:oid                 s/Str
@@ -295,7 +300,7 @@
 (s/defschema TilastokeskusApplication
   {:hakemus_oid    s/Str
    :haku_oid       s/Str
-   :hekilo_oid     s/Str
+   :henkilo_oid    s/Str
    :hakukohde_oids [s/Str]})
 
 (def event-types (s/enum "updated-by-applicant"
@@ -344,22 +349,19 @@
 (s/defschema ApplicationCountsHakukohde {:oid               s/Str
                                          :name              LocalizedStringOptional
                                          :application-count s/Int
-                                         :unprocessed       s/Int
-                                         :incomplete        s/Int
+                                         :processed         s/Int
                                          :haku              s/Str})
 
 (s/defschema TarjontaHaku {:oid               s/Str
                            :name              LocalizedStringOptional
                            :application-count s/Int
-                           :unprocessed       s/Int
-                           :incomplete        s/Int
+                           :processed         s/Int
                            :hakukohteet       [ApplicationCountsHakukohde]})
 
-(s/defschema DirectFormHaku {:name              s/Str
+(s/defschema DirectFormHaku {:name              LocalizedStringOptional
                              :key               s/Str
                              :application-count s/Int
-                             :unprocessed       s/Int
-                             :incomplete        s/Int})
+                             :processed         s/Int})
 
 (s/defschema Haut {:tarjonta-haut    [TarjontaHaku]
                    :direct-form-haut [DirectFormHaku]})
