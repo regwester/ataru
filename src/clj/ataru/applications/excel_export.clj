@@ -177,7 +177,9 @@
     (get-in koodi [:label lang])))
 
 (defn- raw-values->human-readable-value [{:keys [content]} {:keys [lang]} key value]
-  (let [field-descriptor (util/get-field-descriptor content key)
+  (let [field-descriptor (->> (util/flatten-form-fields content)
+                              (filter #(= key (:id %)))
+                              first)
         lang (-> lang clojure.string/lower-case keyword)
         koodisto-source (:koodisto-source field-descriptor)
         options (:options field-descriptor)]
@@ -268,20 +270,20 @@
 
 (defn pick-form-labels
   [form-content pick-cond]
-  (->> (reduce
-         (fn [acc form-element]
-           (let [followups (remove nil? (mapcat :followups (:options form-element)))]
-             (cond
-               (pos? (count (:children form-element)))
-               (into acc (pick-form-labels (:children form-element) pick-cond))
+  (reduce
+   (fn [acc form-element]
+     (let [followups (remove nil? (mapcat :followups (:options form-element)))]
+       (cond
+         (pos? (count (:children form-element)))
+         (into acc (pick-form-labels (:children form-element) pick-cond))
 
-               (pos? (count followups))
-               (into (into acc (pick-label form-element pick-cond)) (pick-form-labels followups pick-cond))
+         (pos? (count followups))
+         (into (into acc (pick-label form-element pick-cond)) (pick-form-labels followups pick-cond))
 
-               :else
-               (into acc (pick-label form-element pick-cond)))))
-         []
-         form-content)))
+         :else
+         (into acc (pick-label form-element pick-cond)))))
+   []
+   form-content))
 
 (defn- find-parent [element fields]
   (let [contains-element? (fn [children] (some? ((set (map :id children)) (:id element))))
@@ -394,18 +396,24 @@
       (str (get-in hakukohde [:name lang]) " - "
            (get-in hakukohde [:tarjoaja-name lang])))))
 
-(defn- add-hakukohde-name [tarjonta-service lang hakukohde-answer]
-  (update hakukohde-answer :value
-          (partial map (fn [oid]
-                         (if-let [name (get-hakukohde-name tarjonta-service lang oid)]
-                           (str name " (" oid ")")
-                           oid)))))
+(defn- add-hakukohde-name [tarjonta-service lang hakukohde-answer haku-oid]
+  (let [use-priority (some->> haku-oid
+                              (tarjonta/get-haku tarjonta-service)
+                              :usePriority)]
+    (update hakukohde-answer :value
+            (partial map-indexed (fn [index oid]
+                                   (let [name           (get-hakukohde-name tarjonta-service lang oid)
+                                         priority-index (when use-priority
+                                                          (str "(" (inc index) ") "))]
+                                     (if name
+                                       (str priority-index name " (" oid ")")
+                                       (str priority-index oid))))))))
 
 (defn- add-hakukohde-names [tarjonta-service application]
   (update application :answers
           (partial map (fn [answer]
                          (if (= "hakukohteet" (:key answer))
-                           (add-hakukohde-name tarjonta-service (:lang application) answer)
+                           (add-hakukohde-name tarjonta-service (:lang application) answer (:haku application))
                            answer)))))
 
 (defn- add-all-hakukohde-reviews
@@ -463,7 +471,9 @@
                                (dorun))
                           (.createFreezePane applications-sheet 0 1 0 1))))
          (dorun))
-    (set-column-widths workbook)
+    (when (< (count applications) 1000)
+      ; turns out .autoSizeColumn is a performance killer for large sheets
+      (set-column-widths workbook))
     (with-open [stream (ByteArrayOutputStream.)]
       (.write workbook stream)
       (.toByteArray stream))))
@@ -480,24 +490,3 @@
    "_"
    (time-formatter (t/now) filename-time-format)
    ".xlsx"))
-
-(defn filename-by-form
-  [form-key]
-  {:post [(some? %)]}
-  (let [form (form-store/fetch-by-key form-key)]
-    (create-filename (some #(get-in form [:name %])
-                           [:fi :sv :en]))))
-
-(defn filename-by-hakukohde
-  [hakukohde-oid session organization-service tarjonta-service]
-  {:post [(some? %)]}
-  (let [name (some #(get (.get-hakukohde-name tarjonta-service hakukohde-oid) %)
-                   [:fi :sv :en])]
-    (create-filename (or name hakukohde-oid))))
-
-(defn filename-by-haku
-  [haku-oid session organization-service tarjonta-service]
-  {:post [(some? %)]}
-  (let [name (some #(get (.get-haku-name tarjonta-service haku-oid) %)
-                   [:fi :sv :en])]
-    (create-filename (or name haku-oid))))

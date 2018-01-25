@@ -445,18 +445,18 @@
 (s/defn get-applications-for-hakukohde :- [schema/Application]
   [filtered-states :- [s/Str]
    hakukohde-oid :- s/Str]
-  (->> (exec-db :db yesql-get-applications-for-hakukohde
-                {:filtered_states filtered-states
-                 :hakukohde_oid   hakukohde-oid})
-       (mapv (partial unwrap-application))))
+  (mapv unwrap-application
+        (exec-db :db yesql-get-applications-for-hakukohde
+                 {:filtered_states filtered-states
+                  :hakukohde_oid   hakukohde-oid})))
 
 (s/defn get-applications-for-haku :- [schema/Application]
   [haku-oid :- s/Str
    filtered-states :- [s/Str]]
-  (->> (exec-db :db yesql-get-applications-for-haku
-         {:filtered_states filtered-states
-          :haku_oid        haku-oid})
-       (mapv (partial unwrap-application))))
+  (mapv unwrap-application
+        (exec-db :db yesql-get-applications-for-haku
+                 {:filtered_states filtered-states
+                  :haku_oid        haku-oid})))
 
 (defn add-person-oid
   "Add person OID to an application"
@@ -548,8 +548,9 @@
                                            :hakukohde_oids (cons "" hakukohde-oids)
                                            :person_oids    (cons "" person-oids)
                                            :modified_after (some->> modified-after
-                                                                    (f/parse (f/formatter "yyyyMMddHHmm"))
-                                                                    (c/to-sql-date))})
+                                                                    (f/parse (f/formatter "yyyyMMddHHmm"
+                                                                                          (time/time-zone-for-id "Europe/Helsinki")))
+                                                                    str)})
                                  (map unwrap-hakurekisteri-application))
         payment-obligations (when (not-empty applications)
                               (payment-obligations-for-applications (map :oid applications)))]
@@ -576,8 +577,16 @@
                 {:hakukohdeOid hakukohde-oid}))
        hakutoiveet))
 
+(defn- hakutoiveet-priority-order
+  [hakukohteet-in-priority-order hakutoiveet]
+  (map (fn [hakukohde-oid]
+         (->> hakutoiveet
+              (filter #(= hakukohde-oid (:hakukohdeOid %)))
+              first))
+         hakukohteet-in-priority-order))
+
 (defn- unwrap-external-application
-  [{:keys [key haku person_oid lang email] :as application}]
+  [{:keys [key haku person_oid lang email hakukohde] :as application}]
   {:oid           key
    :hakuOid       haku
    :henkiloOid    person_oid
@@ -589,7 +598,8 @@
                         nil)
                        (group-by :hakukohde)
                        (requirement-names-mapped-to-states-by-hakukohde)
-                       (hakutoiveet-to-list))})
+                       (hakutoiveet-to-list)
+                       (hakutoiveet-priority-order hakukohde))})
 
 (defn get-external-applications
   [haku-oid hakukohde-oid hakemus-oids organizations]

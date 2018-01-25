@@ -68,12 +68,7 @@
    :tarjonta-haut (filter haku-completely-processed? (:tarjonta-haut haut))})
 
 (defn sort-haku-seq-by-unprocessed [haku-seq]
-  (sort
-    (fn [a b]
-      (-
-        (- (:application-count b) (:processed b))
-        (- (:application-count a) (:processed a))))
-    haku-seq))
+  (->> haku-seq (sort-by :application-count >) (sort-by :unprocessed >)))
 
 (defn sort-haku-seq-by-name [haku-seq]
   (sort-by (fn [haku]
@@ -247,8 +242,8 @@
   :application/filtered-applications
   (fn [db _]
     (let [applications                 (-> db :application :applications)
-          processing-states-to-include (-> db :application :filter set)
-          selection-states-to-include  (-> db :application :selection-filter set)]
+          processing-states-to-include (-> db :application :processing-state-filter set)
+          selection-states-to-include  (-> db :application :selection-state-filter set)]
       (filter
         (fn [application]
           (and
@@ -278,3 +273,15 @@
   (fn [db]
     (or (-> db :application :review-notes count)
         0)))
+
+(re-frame/reg-sub
+  :application/prioritize-hakukohteet?
+  (fn [db _]
+    (-> db :application :selected-application-and-form :application :tarjonta :prioritize-hakukohteet)))
+
+(re-frame/reg-sub
+  :application/hakukohde-priority-number
+  (fn [db [_ hakukohde-oid]]
+    (->> (-> db :application :selected-application-and-form :application :answers :hakukohteet :value)
+         (keep-indexed #(when (= hakukohde-oid %2) (inc %1)))
+         first)))

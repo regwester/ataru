@@ -33,6 +33,7 @@
 (defn close-application [db]
   (cljs-util/update-url-with-query-params {:application-key nil})
   (-> db
+      (assoc-in [:application :selected-review-hakukohde] nil)
       (assoc-in [:application :selected-key] nil)
       (assoc-in [:application :selected-application-and-form] nil)
       (assoc-in [:application :application-list-expanded?] true)))
@@ -184,12 +185,12 @@
 (defn fetch-applications-fx [db path]
   {:db   (-> db
              (assoc-in [:application :fetching-applications] true)
-             (assoc-in [:application :filter] (extract-unselected-review-states-from-query
-                                                :unselected-states
-                                                review-states/application-hakukohde-processing-states))
-             (assoc-in [:application :selection-filter] (extract-unselected-review-states-from-query
-                                                          :unselected-selection-states
-                                                          review-states/application-hakukohde-selection-states)))
+             (assoc-in [:application :processing-state-filter] (extract-unselected-review-states-from-query
+                                                                 :processing-state-filter
+                                                                 review-states/application-hakukohde-processing-states))
+             (assoc-in [:application :selection-state-filter] (extract-unselected-review-states-from-query
+                                                                :selection-state-filter
+                                                                review-states/application-hakukohde-selection-states)))
    :http {:method              :get
           :path                path
           :skip-parse-times?   true
@@ -248,7 +249,10 @@
       (assoc-in [:application :review] review)
       (assoc-in [:application :review-notes] review-notes)
       (assoc-in [:application :review :hakukohde-reviews] hakukohde-reviews)
-      (assoc-in [:application :selected-review-hakukohde] (or (-> application :hakukohde (first)) "form"))
+      (update-in [:application :selected-review-hakukohde] (fn [current-hakukohde]
+                                                             (or
+                                                               (when (contains? (set (:hakukohde application)) current-hakukohde) current-hakukohde)
+                                                               (or (-> application :hakukohde (first)) "form"))))
       (assoc-in [:application :information-requests] information-requests)))
 
 (defn review-autosave-predicate [current prev]

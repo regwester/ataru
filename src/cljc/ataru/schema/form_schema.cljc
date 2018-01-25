@@ -58,6 +58,8 @@
 
 (s/defschema FormField {:fieldClass                                      (s/eq "formField")
                         :id                                              s/Str
+                        (s/optional-key :cannot-view)                    s/Bool
+                        (s/optional-key :cannot-edit)                    s/Bool
                         (s/optional-key :validators)                     [(apply s/enum (concat (keys validator/pure-validators)
                                                                                                 (keys validator/async-validators)))]
                         (s/optional-key :rules)                          {s/Keyword s/Any}
@@ -134,6 +136,7 @@
   {:hakukohteet                        [FormTarjontaHakukohde]
    :haku-oid                           s/Str
    :haku-name                          LocalizedStringOptional
+   :prioritize-hakukohteet             s/Bool
    :max-hakukohteet                    (s/maybe s/Int)
    :can-submit-multiple-applications   s/Bool
    (s/optional-key :default-hakukohde) FormTarjontaHakukohde
@@ -171,18 +174,16 @@
 (s/defschema FormWithContentAndTarjontaMetadata
   (merge FormWithContent {:tarjonta FormTarjontaMetadata}))
 
-(s/defschema Answer {:key                          s/Str,
-                     :value                        (s/cond-pre s/Str
-                                                               s/Int
-                                                               [(s/cond-pre s/Str
-                                                                            File
-                                                                            [(s/cond-pre s/Str s/Int File)])])
-                     :fieldType                    (apply s/enum form-fields)
-                     (s/optional-key :cannot-edit) s/Bool
-                     (s/optional-key :cannot-view) s/Bool
-                     (s/optional-key :label)       (s/maybe (s/cond-pre
-                                                              LocalizedString
-                                                              s/Str))})
+(s/defschema Answer {:key                    s/Str,
+                     :value                  (s/cond-pre s/Str
+                                                         s/Int
+                                                         [(s/cond-pre s/Str
+                                                                      File
+                                                                      [(s/cond-pre s/Str s/Int File)])])
+                     :fieldType              (apply s/enum form-fields)
+                     (s/optional-key :label) (s/maybe (s/cond-pre
+                                                       LocalizedString
+                                                       s/Str))})
 
 (def review-requirement-values
   (->> review-states/hakukohde-review-types
@@ -350,18 +351,23 @@
                                          :name              LocalizedStringOptional
                                          :application-count s/Int
                                          :processed         s/Int
+                                         :unprocessed       s/Int
                                          :haku              s/Str})
 
-(s/defschema TarjontaHaku {:oid               s/Str
-                           :name              LocalizedStringOptional
-                           :application-count s/Int
-                           :processed         s/Int
-                           :hakukohteet       [ApplicationCountsHakukohde]})
+(s/defschema TarjontaHaku {:oid                    s/Str
+                           :name                   LocalizedStringOptional
+                           :haku-application-count s/Int
+                           :application-count      s/Int
+                           :processed              s/Int
+                           :unprocessed            s/Int
+                           :hakukohteet            [ApplicationCountsHakukohde]})
 
-(s/defschema DirectFormHaku {:name              LocalizedStringOptional
-                             :key               s/Str
-                             :application-count s/Int
-                             :processed         s/Int})
+(s/defschema DirectFormHaku {:name                   LocalizedStringOptional
+                             :key                    s/Str
+                             :haku-application-count s/Int
+                             :application-count      s/Int
+                             :processed              s/Int
+                             :unprocessed            s/Int})
 
 (s/defschema Haut {:tarjonta-haut    [TarjontaHaku]
                    :direct-form-haut [DirectFormHaku]})

@@ -1,5 +1,6 @@
 (ns ataru.hakija.hakija-routes-spec
-  (:require [ataru.applications.application-store :as store]
+  (:require [ataru.util :as util]
+            [ataru.applications.application-store :as store]
             [ataru.fixtures.application :as application-fixtures]
             [ataru.fixtures.db.unit-test-db :as db]
             [ataru.hakija.application-email-confirmation :as application-email]
@@ -33,6 +34,9 @@
                                           (assoc-in [:answers 12 :value] "ruotsi")
                                           (assoc-in [:answers 2 :value] "edited@foo.com")
                                           (assoc-in [:answers 14 :value] ["57af9386-d80c-4321-ab4a-d53619c14a74_edited"])))
+(def application-for-hakukohde-hakukohde-order-edited (-> application-fixtures/person-info-form-application-for-hakukohde
+                                                          (assoc :hakukohde [ "1.2.246.562.20.49028196524" "1.2.246.562.20.49028196523"])
+                                                          (assoc-in [:answers 15 :value] [ "1.2.246.562.20.49028196524" "1.2.246.562.20.49028196523"])))
 
 (def handler (-> (routes/new-handler)
                  (assoc :tarjonta-service (tarjonta-service/new-tarjonta-service))
@@ -58,6 +62,14 @@
 (defmacro with-get-response
   [secret resp & body]
   `(let [~resp (-> (mock/request :get (str "/hakemus/api/application?secret=" ~secret))
+                   (mock/content-type "application/json")
+                   handler
+                   parse-body)]
+     ~@body))
+
+(defmacro with-haku-form-response
+  [haku-oid resp & body]
+  `(let [~resp (-> (mock/request :get (str "/hakemus/api/haku/" ~haku-oid))
                    (mock/content-type "application/json")
                    handler
                    parse-body)]
@@ -94,9 +106,9 @@
   (when-let [actual (get-application-by-id application-id)]
     (= (:form application-fixtures/person-info-form-application-for-hakukohde) (:form actual))))
 
-(defn- cannot-edit? [answer] (true? (:cannot-edit answer)))
+(defn- cannot-edit? [field] (true? (:cannot-edit field)))
 
-(defn- cannot-view? [answer] (true? (:cannot-view answer)))
+(defn- cannot-view? [field] (true? (:cannot-view field)))
 
 (defn- get-answer
   [application key]
@@ -109,47 +121,84 @@
 
 (defn- hakuaika-ongoing
   [_ _ _]
-  {:on    true
-   :start (- (System/currentTimeMillis) (* 2 24 3600 1000))
-   :end   (+ (System/currentTimeMillis) (* 2 24 3600 1000))})
+  {:on                                  true
+   :start                               (- (System/currentTimeMillis) (* 2 24 3600 1000))
+   :end                                 (+ (System/currentTimeMillis) (* 2 24 3600 1000))
+   :hakukierros-end                     nil
+   :jatkuva-haku?                       false
+   :attachment-modify-grace-period-days (-> config :public-config :attachment-modify-grace-period-days)})
 
 (defn- hakuaika-ended-within-grace-period
   [_ _ _]
   (let [edit-grace-period (-> config :public-config :attachment-modify-grace-period-days)
         start             (* 2 edit-grace-period)
         end               (quot edit-grace-period 2)]
-    {:on    false
-     :start (- (System/currentTimeMillis) (* start 24 3600 1000))
-     :end   (- (System/currentTimeMillis) (* end 24 3600 1000))}))
+    {:on                                  false
+     :start                               (- (System/currentTimeMillis) (* start 24 3600 1000))
+     :end                                 (- (System/currentTimeMillis) (* end 24 3600 1000))
+     :hakukierros-end                     nil
+     :jatkuva-haku?                       false
+     :attachment-modify-grace-period-days edit-grace-period}))
 
 (defn- hakuaika-ended-within-grace-period-hakukierros-ongoing
   [_ _ _]
   (let [edit-grace-period (-> config :public-config :attachment-modify-grace-period-days)
         start             (* 2 edit-grace-period)
         end               (quot edit-grace-period 2)]
-    {:on              false
-     :start           (- (System/currentTimeMillis) (* start 24 3600 1000))
-     :end             (- (System/currentTimeMillis) (* end 24 3600 1000))
-     :hakukierros-end (+ (System/currentTimeMillis) (* 2 24 3600 1000))}))
-
-(defn- hakuaika-ended-grace-period-passed
-  [_ _ _]
-  (let [edit-grace-period (-> config :public-config :attachment-modify-grace-period-days)
-        start             (* 2 edit-grace-period)
-        end               (+ edit-grace-period 1)]
-    {:on    false
-     :start (- (System/currentTimeMillis) (* start 24 3600 1000))
-     :end   (- (System/currentTimeMillis) (* end 24 3600 1000))}))
+    {:on                                  false
+     :start                               (- (System/currentTimeMillis) (* start 24 3600 1000))
+     :end                                 (- (System/currentTimeMillis) (* end 24 3600 1000))
+     :hakukierros-end                     (+ (System/currentTimeMillis) (* 2 24 3600 1000))
+     :jatkuva-haku?                       false
+     :attachment-modify-grace-period-days edit-grace-period}))
 
 (defn- hakuaika-ended-grace-period-passed-hakukierros-ongoing
   [_ _ _]
   (let [edit-grace-period (-> config :public-config :attachment-modify-grace-period-days)
         start             (* 2 edit-grace-period)
         end               (+ edit-grace-period 1)]
-    {:on              false
-     :start           (- (System/currentTimeMillis) (* start 24 3600 1000))
-     :end             (- (System/currentTimeMillis) (* end 24 3600 1000))
-     :hakukierros-end (+ (System/currentTimeMillis) (* 2 24 3600 1000))}))
+    {:on                                  false
+     :start                               (- (System/currentTimeMillis) (* start 24 3600 1000))
+     :end                                 (- (System/currentTimeMillis) (* end 24 3600 1000))
+     :hakukierros-end                     (+ (System/currentTimeMillis) (* 2 24 3600 1000))
+     :jatkuva-haku?                       false
+     :attachment-modify-grace-period-days edit-grace-period}))
+
+(describe "/haku"
+  (tags :unit :hakija-routes)
+
+  (around [spec]
+    (with-redefs [application-email/start-email-submit-confirmation-job (fn [_ _])]
+      (spec)))
+
+  (before
+   (reset! form (db/init-db-fixture form-fixtures/person-info-form)))
+
+  (it "should get form"
+    (with-redefs [hakuaika/get-hakuaika-info hakuaika-ongoing]
+      (with-haku-form-response "1.2.246.562.29.65950024185" resp
+        (should= 200 (:status resp))
+        (let [fields (-> resp :body :content util/flatten-form-fields)]
+          (should= 7 (count (filter cannot-edit? fields)))
+          (should= 1 (count (filter cannot-view? fields)))))))
+
+  (it "should get application with hakuaika ended"
+    (with-redefs [hakuaika/get-hakuaika-info hakuaika-ended-within-grace-period]
+      (with-haku-form-response "1.2.246.562.29.65950024185" resp
+        (should= 200 (:status resp))
+        (let [fields (-> resp :body :content util/flatten-form-fields)]
+          (should= 1  (count (remove cannot-edit? fields)))
+          (should= 15 (count (filter cannot-edit? fields)))
+          (should= 1  (count (filter cannot-view? fields)))))))
+
+  (it "should get application with hakuaika ended but hakukierros ongoing"
+    (with-redefs [hakuaika/get-hakuaika-info hakuaika-ended-grace-period-passed-hakukierros-ongoing]
+      (with-haku-form-response "1.2.246.562.29.65950024185" resp
+        (should= 200 (:status resp))
+        (let [fields (-> resp :body :content util/flatten-form-fields)]
+          (should= 6 (count (remove cannot-edit? fields)))
+          (should= 10 (count (filter cannot-edit? fields)))
+          (should= 1  (count (filter cannot-view? fields))))))))
 
 (describe "/application"
   (tags :unit :hakija-routes)
@@ -210,28 +259,17 @@
     (it "should get application"
       (with-redefs [hakuaika/get-hakuaika-info hakuaika-ongoing]
         (with-get-response "12345" resp
-          (should= 200 (:status resp))
-          (let [answers (-> resp :body :answers)]
-            (should= 7 (count (filter cannot-edit? answers)))
-            (should= 1 (count (filter cannot-view? answers)))))))
+          (should= 200 (:status resp)))))
 
     (it "should get application with hakuaika ended"
       (with-redefs [hakuaika/get-hakuaika-info hakuaika-ended-within-grace-period]
         (with-get-response "12345" resp
-          (should= 200 (:status resp))
-          (let [answers (-> resp :body :answers)]
-            (should= 1 (count (remove cannot-edit? answers)))
-            (should= 14 (count (filter cannot-edit? answers)))
-            (should= 1 (count (filter cannot-view? answers)))))))
+          (should= 200 (:status resp)))))
 
     (it "should get application with hakuaika ended but hakukierros ongoing"
       (with-redefs [hakuaika/get-hakuaika-info hakuaika-ended-grace-period-passed-hakukierros-ongoing]
         (with-get-response "12345" resp
-          (should= 200 (:status resp))
-          (let [answers (-> resp :body :answers)]
-            (should= 6 (count (remove cannot-edit? answers)))
-            (should= 9 (count (filter cannot-edit? answers)))
-            (should= 1 (count (filter cannot-view? answers))))))))
+          (should= 200 (:status resp))))))
 
   (describe "PUT application"
     (around [spec]
@@ -261,7 +299,31 @@
         (should= 200 (:status resp))
         (let [id          (-> resp :body :id)
               application (get-application-by-id id)]
-          (should= "010101A123N" (get-answer application "ssn"))))))
+          (should= "010101A123N" (get-answer application "ssn")))))
+
+    (it "should create for hakukukohde with hakukohde order check"
+      (with-redefs [hakuaika/get-hakuaika-info hakuaika-ongoing]
+        (with-response :post resp application-fixtures/person-info-form-application-for-hakukohde
+          (should= 200 (:status resp))
+          (should (have-application-in-db (get-in resp [:body :id])))
+          (should= ["1.2.246.562.20.49028196523" "1.2.246.562.20.49028196524"]
+                   (->> (get-application-by-id (-> resp :body :id))
+                        :content
+                        :answers
+                        (filter #(= "hakukohteet" (:key %)))
+                        first
+                        :value)))))
+
+    (it "should change hakukohde order"
+      (with-response :put resp application-for-hakukohde-hakukohde-order-edited
+        (should= 200 (:status resp))
+        (should= ["1.2.246.562.20.49028196524" "1.2.246.562.20.49028196523"]
+                 (->> (get-application-by-id (-> resp :body :id))
+                      :content
+                      :answers
+                      (filter #(= "hakukohteet" (:key %)))
+                      first
+                      :value)))))
 
   (describe "PUT application after hakuaika ended"
     (around [spec]
