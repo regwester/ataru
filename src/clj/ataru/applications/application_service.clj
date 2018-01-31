@@ -163,7 +163,7 @@
      :information-requests (information-request-store/get-information-requests application-key)}))
 
 (defn get-excel-report-of-applications-by-key
-  [application-keys selected-hakukohde session organization-service tarjonta-service ohjausparametrit-service]
+  [application-keys selected-hakukohde skip-answers? session organization-service tarjonta-service ohjausparametrit-service]
   (let [applications         (application-store/get-applications-by-keys application-keys)
         forms                (->> applications
                                   (map :form-key)
@@ -174,8 +174,17 @@
                                              organization-service
                                              [:view-applications :edit-applications])
                                           forms))
-        allowed-applications (filter #(contains? allowed-forms (:form-key %)) applications)]
-    (ByteArrayInputStream. (excel/export-applications allowed-applications selected-hakukohde tarjonta-service ohjausparametrit-service))))
+        allowed-applications (filter #(contains? allowed-forms (:form-key %)) applications)
+        application-reviews  (->> allowed-applications
+                                  (map :key)
+                                  application-store/get-application-reviews-by-keys
+                                  (reduce #(assoc %1 (:application-key %2) %2) {}))]
+    (ByteArrayInputStream. (excel/export-applications allowed-applications
+                                                      application-reviews
+                                                      selected-hakukohde
+                                                      skip-answers?
+                                                      tarjonta-service
+                                                      ohjausparametrit-service))))
 
 (defn- save-application-hakukohde-reviews
   [virkailija application-key hakukohde-reviews session]

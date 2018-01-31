@@ -39,7 +39,11 @@
      (try
        (with-open [output# (FileOutputStream. (.getPath ~(first bindings)))]
          (->> (j2ee/export-applications ~(second bindings)
+                                        (reduce #(assoc %1 (:key %2) fixtures/application-review)
+                                                {}
+                                                ~(second bindings))
                                         nil
+                                        false
                                         (tarjonta-service/new-tarjonta-service)
                                         (ohjausparametrit-service/new-ohjausparametrit-service))
               (.write output#)))
@@ -51,8 +55,7 @@
   (tags :unit :excel)
 
   (around [spec]
-    (with-redefs [application-store/get-application-review (fn [& _] fixtures/application-review)
-                  form-store/fetch-by-id (fn [id]
+    (with-redefs [form-store/fetch-by-id (fn [id]
                                            (case id
                                              123 fixtures/form
                                              321 fixtures/form-for-hakukohde))

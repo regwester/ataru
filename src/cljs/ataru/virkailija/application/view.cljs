@@ -39,6 +39,9 @@
       [:input {:type  "hidden"
                :name  "filename"
                :value filename}]
+      [:input {:type  "hidden"
+               :name  "skip-answers"
+               :value "false"}]
       (when-let [csrf-token (cljs-util/csrf-token)]
         [:input {:type  "hidden"
                  :name  "CSRF"
@@ -502,7 +505,7 @@
       [application-list-basic-column-header
        :created-time
        "application-handling__list-row--time"
-       "Saapunut"]
+       "Viimeksi muokattu"]
       [:span.application-handling__list-row--state
        [hakukohde-state-filter-controls
         :processing-state-filter
