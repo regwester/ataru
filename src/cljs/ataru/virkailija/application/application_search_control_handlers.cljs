@@ -9,25 +9,26 @@
 
 (def show-path [:application :search-control :show])
 
-(reg-event-db
- :application/show-incomplete-haut-list
- (fn [db]
-   (assoc-in db show-path :incomplete)))
+(reg-event-fx
+  :application/show-incomplete-haut-list
+  (fn [{:keys [db]} _]
+    {:db       (-> db
+                   handlers/clear-selection
+                   (assoc-in show-path :incomplete))
+     :dispatch [:application/refresh-haut-and-hakukohteet]}))
+
+(reg-event-fx
+  :application/show-complete-haut-list
+  (fn [{:keys [db]} _]
+    {:db       (-> db
+                   handlers/clear-selection
+                   (assoc-in show-path :complete))
+     :dispatch [:application/refresh-haut-and-hakukohteet]}))
 
 (reg-event-db
- :application/show-complete-haut-list
- (fn [db]
-   (assoc-in db show-path :complete)))
-
-(reg-event-db
- :application/show-search-term
- (fn [db]
-   (assoc-in db show-path :search-term)))
-
-(reg-event-db
- :application/close-search-control
- (fn [db]
-   (assoc-in db show-path nil)))
+  :application/close-search-control
+  (fn [db]
+    (assoc-in db show-path nil)))
 
 (defn- set-search-term
   [db search-term]
@@ -58,6 +59,13 @@
   (fn [_ _]
     {:navigate (str "/lomake-editori/applications/search")}))
 
+(defn- show-search-term
+  [db search-term]
+  (-> db
+      handlers/clear-selection
+      (set-search-term search-term)
+      (assoc-in show-path :search-term)))
+
 (reg-event-fx
   :application/search-by-term
   (fn [{:keys [db]} [_ search-term application-key]]
@@ -83,7 +91,7 @@
                                    [search-term "name"])]
       (if (some? query-param)
         (handlers/fetch-applications-fx
-         (set-search-term db search-term)
+         (show-search-term db search-term)
          (str "/lomake-editori/api/applications/list?" query-param "=" term)
          application-key)
-        {:db (set-search-term db search-term)}))))
+        {:db (show-search-term db search-term)}))))

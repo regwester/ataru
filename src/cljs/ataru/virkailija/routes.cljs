@@ -30,13 +30,14 @@
     (dispatch [:editor/select-form (:key form)])))
 
 (defn common-actions-for-applications-route []
-  (dispatch [:application/refresh-haut-and-hakukohteet])
-  (dispatch [:application/clear-applications-haku-and-form-selections])
   (dispatch [:set-active-panel :application])
   (dispatch [:application/get-virkailija-settings]))
 
 (defn app-routes []
   (defroute "/lomake-editori/" []
+    (secretary/dispatch! "/lomake-editori/editor"))
+
+  (defroute "/lomake-editori/editor/" []
     (secretary/dispatch! "/lomake-editori/editor"))
 
   (defroute "/lomake-editori/editor" []
@@ -77,25 +78,24 @@
 
   (defroute "/lomake-editori/applications/search"
     [_ query-params]
-    (dispatch [:set-active-panel :application])
-    (dispatch [:application/show-search-term])
-    (if-let [term (:term query-params)]
-      (dispatch [:application/search-by-term term (:application-key query-params)])
-      (dispatch [:application/clear-applications-haku-and-form-selections])))
+    (common-actions-for-applications-route)
+    (dispatch [:application/search-by-term
+               (:term query-params "")
+               (:application-key query-params)]))
 
   (defroute "/lomake-editori/applications/hakukohde/:hakukohde-oid"
     [hakukohde-oid query-params]
     (common-actions-for-applications-route)
     (dispatch [:application/close-search-control])
-    (dispatch [:application/select-hakukohde hakukohde-oid])
-    (dispatch [:application/fetch-applications-by-hakukohde hakukohde-oid (:application-key query-params)]))
+    (dispatch [:application/select-hakukohde
+               hakukohde-oid
+               (:application-key query-params)]))
 
   (defroute "/lomake-editori/applications/haku/:haku-oid/hakukohderyhma/:hakukohderyhma-oid"
     [haku-oid hakukohderyhma-oid query-params]
     (common-actions-for-applications-route)
     (dispatch [:application/close-search-control])
-    (dispatch [:application/select-hakukohderyhma [haku-oid hakukohderyhma-oid]])
-    (dispatch [:application/fetch-applications-by-hakukohderyhma
+    (dispatch [:application/select-hakukohderyhma
                [haku-oid hakukohderyhma-oid]
                (:application-key query-params)]))
 
@@ -103,14 +103,14 @@
     [haku-oid query-params]
     (common-actions-for-applications-route)
     (dispatch [:application/close-search-control])
-    (dispatch [:application/select-haku haku-oid])
-    (dispatch [:application/fetch-applications-by-haku haku-oid (:application-key query-params)]))
+    (dispatch [:application/select-haku
+               haku-oid
+               (:application-key query-params)]))
 
   (defroute "/lomake-editori/applications/:key"
     [key query-params]
     (common-actions-for-applications-route)
     (dispatch [:application/close-search-control])
-    (dispatch [:application/select-form key])
-    (dispatch [:application/fetch-applications key (:application-key query-params)]))
+    (dispatch [:application/select-form key (:application-key query-params)]))
 
   (accountant/dispatch-current!))

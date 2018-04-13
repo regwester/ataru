@@ -434,50 +434,53 @@
       (cond-> {:db db}
         (some? autosave) (assoc :stop-autosave autosave)))))
 
-(defn- clear-selection
+(defn clear-selection
   [db]
   (update db :application dissoc
+          :applications
           :selected-form-key
           :selected-haku
           :selected-hakukohde
           :selected-hakukohderyhma))
 
-(reg-event-db
-  :application/clear-applications-haku-and-form-selections
-  (fn [db _]
-    (-> db
-        (assoc-in [:editor :selected-form-key] nil)
-        (assoc-in [:application :applications] nil)
-        (assoc-in [:application :search-control :search-term :value] "")
-        clear-selection)))
-
-(reg-event-db
+(reg-event-fx
   :application/select-form
-  (fn [db [_ form-key]]
-    (-> db
-        clear-selection
-        (assoc-in [:application :selected-form-key] form-key))))
+  (fn [{:keys [db]} [_ form-key application-key]]
+    {:db       (-> db
+                   clear-selection
+                   (assoc-in [:application :selected-form-key] form-key))
+     :dispatch [:application/fetch-applications form-key application-key]}))
 
-(reg-event-db
+(reg-event-fx
   :application/select-hakukohde
-  (fn [db [_ hakukohde-oid]]
-    (-> db
-        clear-selection
-        (assoc-in [:application :selected-hakukohde] hakukohde-oid))))
+  (fn [{:keys [db]} [_ hakukohde-oid application-key]]
+    {:db       (-> db
+                   clear-selection
+                   (assoc-in [:application :selected-hakukohde] hakukohde-oid))
+     :dispatch [:application/fetch-applications-by-hakukohde
+                hakukohde-oid
+                application-key]}))
 
-(reg-event-db
+(reg-event-fx
   :application/select-hakukohderyhma
-  (fn [db [_ [haku-oid hakukohderyhma-oid]]]
-    (-> db
-        clear-selection
-        (assoc-in [:application :selected-hakukohderyhma] [haku-oid hakukohderyhma-oid]))))
+  (fn [{:keys [db]} [_ [haku-oid hakukohderyhma-oid] application-key]]
+    {:db       (-> db
+                   clear-selection
+                   (assoc-in [:application :selected-hakukohderyhma]
+                             [haku-oid hakukohderyhma-oid]))
+     :dispatch [:application/fetch-applications-by-hakukohderyhma
+                [haku-oid hakukohderyhma-oid]
+                application-key]}))
 
-(reg-event-db
+(reg-event-fx
   :application/select-haku
-  (fn [db [_ haku-oid]]
-    (-> db
-        clear-selection
-        (assoc-in [:application :selected-haku] haku-oid))))
+  (fn [{:keys [db]} [_ haku-oid application-key]]
+    {:db       (-> db
+                   clear-selection
+                   (assoc-in [:application :selected-haku] haku-oid))
+     :dispatch [:application/fetch-applications-by-haku
+                haku-oid
+                application-key]}))
 
 (defn- keys-to-names [m] (reduce-kv #(assoc %1 (name %2) %3) {} m))
 
