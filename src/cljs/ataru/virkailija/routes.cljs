@@ -9,7 +9,7 @@
 (accountant/configure-navigation! {:nav-handler  (fn [path]
                                                    (secretary/dispatch! path))
                                    :path-exists? (fn [path]
-                                                   (secretary/locate-route path))})
+                                                   (secretary/locate-route (first (clojure.string/split path #"\?"))))})
 
 (defn set-history!
   [path]
@@ -17,8 +17,9 @@
 
 (defn navigate-to-click-handler
   [path & _]
-  (when (secretary/locate-route path)
-    (set-history! path)))
+  (when (secretary/locate-route (first (clojure.string/split path #"\?")))
+    (set-history! path)
+    (accountant/dispatch-current!)))
 
 (defn- select-editor-form-if-not-deleted
   [form]
@@ -71,7 +72,7 @@
     (common-actions-for-applications-route)
     (dispatch [:application/show-complete-haut-list]))
 
-  (defroute #"^/lomake-editori/applications/search/" []
+  (defroute "/lomake-editori/applications/search/" []
     (secretary/dispatch! "/lomake-editori/applications/search"))
 
   (defroute "/lomake-editori/applications/search"

@@ -280,20 +280,6 @@
                            (str "/lomake-editori/api/applications/list?hakuOid=" haku-oid)
                            application-key)))
 
-(reg-event-fx
-  :application/fetch-applications-by-term
-  (fn [{:keys [db]} [_ term type application-key]]
-    (let [query-param (case type
-                        :application-oid "applicationOid"
-                        :person-oid "personOid"
-                        :ssn "ssn"
-                        :dob "dob"
-                        :email "email"
-                        :name "name")]
-      (fetch-applications-fx db
-                             (str "/lomake-editori/api/applications/list?" query-param "=" term)
-                             application-key))))
-
 (reg-event-db
  :application/review-updated
  (fn [db [_ response]]
@@ -456,15 +442,14 @@
           :selected-hakukohde
           :selected-hakukohderyhma))
 
-(reg-event-fx
+(reg-event-db
   :application/clear-applications-haku-and-form-selections
-  (fn [{db :db} _]
-    (cljs-util/unset-query-param "term")
-    {:db (-> db
-             (assoc-in [:editor :selected-form-key] nil)
-             (assoc-in [:application :applications] nil)
-             (assoc-in [:application :search-control :search-term :value] "")
-             clear-selection)}))
+  (fn [db _]
+    (-> db
+        (assoc-in [:editor :selected-form-key] nil)
+        (assoc-in [:application :applications] nil)
+        (assoc-in [:application :search-control :search-term :value] "")
+        clear-selection)))
 
 (reg-event-db
   :application/select-form

@@ -1,10 +1,11 @@
 (ns ataru.virkailija.application.application-search-control-handlers
   (:require
-   [re-frame.core :refer [reg-event-fx reg-event-db]]
+   [ataru.cljs-util :as cljs-util]
    [ataru.dob :as dob]
    [ataru.email :as email]
    [ataru.ssn :as ssn]
-   [ataru.cljs-util :as cljs-util]))
+   [ataru.virkailija.application.handlers :as handlers]
+   [re-frame.core :refer [reg-event-fx reg-event-db]]))
 
 (def show-path [:application :search-control :show])
 
@@ -29,11 +30,8 @@
    (assoc-in db show-path nil)))
 
 (defn- set-search-term
-  [db term]
-  (cljs-util/set-query-param "term" term)
-  (-> db
-      (assoc-in [:application :search-control :search-term :value] term)
-      (assoc-in [:application :search-control :search-term :show-error] false)))
+  [db search-term]
+  (assoc-in db [:application :search-control :search-term :value] search-term))
 
 (defn- person-oid?
   [maybe-oid]
@@ -44,33 +42,48 @@
   (re-matches #"^1\.2\.246\.562\.11\.\d+$" maybe-oid))
 
 (reg-event-fx
+  :application/navigate-to-search
+  (fn [{:keys [db]} [_ search-term]]
+    (when (= search-term (get-in db [:application :search-control :search-term :value]))
+      {:navigate (str "/lomake-editori/applications/search?term=" search-term)})))
+
+(reg-event-fx
+  :application/search-term-changed
+  (fn [{:keys [db]} [_ search-term]]
+    {:db             (set-search-term db search-term)
+     :dispatch-later [{:ms 500 :dispatch [:application/navigate-to-search search-term]}]}))
+
+(reg-event-fx
+  :application/clear-search-term
+  (fn [_ _]
+    {:navigate (str "/lomake-editori/applications/search")}))
+
+(reg-event-fx
   :application/search-by-term
   (fn [{:keys [db]} [_ search-term application-key]]
-    (let [search-term-ucase (-> search-term
-                                clojure.string/trim
-                                clojure.string/upper-case)
-          term-type         (cond (application-oid? search-term-ucase)
-                                  [search-term-ucase :application-oid]
+    (let [search-term-ucase  (-> search-term
+                                 clojure.string/trim
+                                 clojure.string/upper-case)
+          [term query-param] (cond (application-oid? search-term-ucase)
+                                   [search-term-ucase "applicationOid"]
 
-                                  (person-oid? search-term-ucase)
-                                  [search-term-ucase :person-oid]
+                                   (person-oid? search-term-ucase)
+                                   [search-term-ucase "personOid"]
 
-                                  (ssn/ssn? search-term-ucase)
-                                  [search-term-ucase :ssn]
+                                   (ssn/ssn? search-term-ucase)
+                                   [search-term-ucase "ssn"]
 
-                                  (dob/dob? search-term-ucase)
-                                  [search-term-ucase :dob]
+                                   (dob/dob? search-term-ucase)
+                                   [search-term-ucase "dob"]
 
-                                  (email/email? search-term)
-                                  [search-term :email]
+                                   (email/email? search-term)
+                                   [search-term "email"]
 
-                                  (< 2 (count search-term))
-                                  [search-term :name])]
-      (if-let [[term type] term-type]
-        {:db                 (set-search-term db search-term)
-         :dispatch-debounced {:timeout  500
-                              :id       :application-search
-                              :dispatch [:application/fetch-applications-by-term term type application-key]}}
-        {:db (-> db
-                 (set-search-term search-term)
-                 (assoc-in [:application :applications] nil))}))))
+                                   (< 2 (count search-term))
+                                   [search-term "name"])]
+      (if (some? query-param)
+        (handlers/fetch-applications-fx
+         (set-search-term db search-term)
+         (str "/lomake-editori/api/applications/list?" query-param "=" term)
+         application-key)
+        {:db (set-search-term db search-term)}))))

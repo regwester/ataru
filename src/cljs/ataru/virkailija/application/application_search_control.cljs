@@ -28,15 +28,13 @@
       {:type        "text"
        :auto-focus  true
        :id          "ssn-search-field"
-       :class       (when (true? @(subscribe [:state-query [:application :search-control :search-term :show-error]]))
-                      "application__search-control-search-term-input-error animated shake")
        :placeholder placeholder-text
        :title       title-text
        :value       @search-term
-       :on-change   (fn [evt] (dispatch [:application/search-by-term (-> evt .-target .-value)]))}]
+       :on-change   (fn [evt] (dispatch [:application/search-term-changed (-> evt .-target .-value)]))}]
      (when-not (clojure.string/blank? @search-term)
        [:span.application__search-control-clear-search-term
-        {:on-click #(dispatch [:application/clear-applications-haku-and-form-selections])}
+        {:on-click #(dispatch [:application/clear-search-term])}
         [:i.zmdi.zmdi-close]])]))
 
 (defn search-term-tab [tab-id selected-tab link-url label-text title-text]
