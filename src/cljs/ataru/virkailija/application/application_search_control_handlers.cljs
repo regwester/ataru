@@ -60,15 +60,16 @@
     {:navigate (str "/lomake-editori/applications/search")}))
 
 (defn- show-search-term
-  [db search-term]
+  [db search-term filters]
   (-> db
       handlers/clear-selection
+      (handlers/set-application-filters filters)
       (set-search-term search-term)
       (assoc-in show-path :search-term)))
 
 (reg-event-fx
   :application/search-by-term
-  (fn [{:keys [db]} [_ search-term application-key]]
+  (fn [{:keys [db]} [_ search-term application-key filters]]
     (let [search-term-ucase  (-> search-term
                                  clojure.string/trim
                                  clojure.string/upper-case)
@@ -91,7 +92,7 @@
                                    [search-term "name"])]
       (if (some? query-param)
         (handlers/fetch-applications-fx
-         (show-search-term db search-term)
+         (show-search-term db search-term filters)
          (str "/lomake-editori/api/applications/list?" query-param "=" term)
          application-key)
-        {:db (show-search-term db search-term)}))))
+        {:db (show-search-term db search-term filters)}))))

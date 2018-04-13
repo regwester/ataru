@@ -1,7 +1,9 @@
 (ns ataru.virkailija.routes
   (:require-macros [secretary.core :refer [defroute]])
   (:import [goog Uri])
-  (:require [ataru.cljs-util :refer [dispatch-after-state]]
+  (:require [ataru.application.review-states :as review-states]
+            [ataru.util :as util]
+            [ataru.cljs-util :refer [dispatch-after-state]]
             [secretary.core :as secretary]
             [re-frame.core :refer [dispatch]]
             [accountant.core :as accountant]))
@@ -29,9 +31,24 @@
       (secretary/dispatch! "/lomake-editori/editor"))
     (dispatch [:editor/select-form (:key form)])))
 
-(defn common-actions-for-applications-route []
+(defn- common-actions-for-applications-route
+  []
   (dispatch [:set-active-panel :application])
   (dispatch [:application/get-virkailija-settings]))
+
+(defn- parse-application-filters
+  [query-params]
+  (->> (util/map-kv {:attachment-state-filter review-states/attachment-hakukohde-review-types
+                     :processing-state-filter review-states/application-hakukohde-processing-states
+                     :selection-state-filter  review-states/application-hakukohde-selection-states}
+                    (partial map first))
+       (reduce-kv (fn [filters key all-states]
+                    (let [param             (get query-params key "")
+                          unselected-states (clojure.string/split param  #",")]
+                      (assoc filters key (clojure.set/difference
+                                          (set all-states)
+                                          (set unselected-states)))))
+                  {})))
 
 (defn app-routes []
   (defroute "/lomake-editori/" []
@@ -81,7 +98,8 @@
     (common-actions-for-applications-route)
     (dispatch [:application/search-by-term
                (:term query-params "")
-               (:application-key query-params)]))
+               (:application-key query-params)
+               (parse-application-filters query-params)]))
 
   (defroute "/lomake-editori/applications/hakukohde/:hakukohde-oid"
     [hakukohde-oid query-params]
@@ -89,7 +107,8 @@
     (dispatch [:application/close-search-control])
     (dispatch [:application/select-hakukohde
                hakukohde-oid
-               (:application-key query-params)]))
+               (:application-key query-params)
+               (parse-application-filters query-params)]))
 
   (defroute "/lomake-editori/applications/haku/:haku-oid/hakukohderyhma/:hakukohderyhma-oid"
     [haku-oid hakukohderyhma-oid query-params]
@@ -97,7 +116,8 @@
     (dispatch [:application/close-search-control])
     (dispatch [:application/select-hakukohderyhma
                [haku-oid hakukohderyhma-oid]
-               (:application-key query-params)]))
+               (:application-key query-params)
+               (parse-application-filters query-params)]))
 
   (defroute "/lomake-editori/applications/haku/:haku-oid"
     [haku-oid query-params]
@@ -105,12 +125,16 @@
     (dispatch [:application/close-search-control])
     (dispatch [:application/select-haku
                haku-oid
-               (:application-key query-params)]))
+               (:application-key query-params)
+               (parse-application-filters query-params)]))
 
   (defroute "/lomake-editori/applications/:key"
     [key query-params]
     (common-actions-for-applications-route)
     (dispatch [:application/close-search-control])
-    (dispatch [:application/select-form key (:application-key query-params)]))
+    (dispatch [:application/select-form
+               key
+               (:application-key query-params)
+               (parse-application-filters query-params)]))
 
   (accountant/dispatch-current!))

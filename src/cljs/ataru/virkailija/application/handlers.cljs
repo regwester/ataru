@@ -224,25 +224,8 @@
                        :else
                        [:application/close-application])})))
 
-(defn- extract-unselected-review-states-from-query
-  [query-param states]
-  (-> (cljs-util/extract-query-params)
-      query-param
-      (clojure.string/split #",")
-      (cljs-util/get-unselected-review-states states)))
-
 (defn fetch-applications-fx [db path application-key]
-  {:db       (-> db
-                 (assoc-in [:application :fetching-applications] true)
-                 (assoc-in [:application :attachment-state-filter] (extract-unselected-review-states-from-query
-                                                                     :attachment-state-filter
-                                                                     review-states/attachment-hakukohde-review-types))
-                 (assoc-in [:application :processing-state-filter] (extract-unselected-review-states-from-query
-                                                                     :processing-state-filter
-                                                                     review-states/application-hakukohde-processing-states))
-                 (assoc-in [:application :selection-state-filter] (extract-unselected-review-states-from-query
-                                                                    :selection-state-filter
-                                                                    review-states/application-hakukohde-selection-states)))
+  {:db       (assoc-in db [:application :fetching-applications] true)
    :dispatch [:application/refresh-haut-and-hakukohteet]
    :http     {:method              :get
               :path                path
@@ -443,19 +426,27 @@
           :selected-hakukohde
           :selected-hakukohderyhma))
 
+(defn set-application-filters
+  [db filters]
+  (update db :application merge filters))
+
 (reg-event-fx
   :application/select-form
-  (fn [{:keys [db]} [_ form-key application-key]]
+  (fn [{:keys [db]} [_ form-key application-key filters]]
     {:db       (-> db
                    clear-selection
+                   (set-application-filters filters)
                    (assoc-in [:application :selected-form-key] form-key))
-     :dispatch [:application/fetch-applications form-key application-key]}))
+     :dispatch [:application/fetch-applications
+                form-key
+                application-key]}))
 
 (reg-event-fx
   :application/select-hakukohde
-  (fn [{:keys [db]} [_ hakukohde-oid application-key]]
+  (fn [{:keys [db]} [_ hakukohde-oid application-key filters]]
     {:db       (-> db
                    clear-selection
+                   (set-application-filters filters)
                    (assoc-in [:application :selected-hakukohde] hakukohde-oid))
      :dispatch [:application/fetch-applications-by-hakukohde
                 hakukohde-oid
@@ -463,9 +454,10 @@
 
 (reg-event-fx
   :application/select-hakukohderyhma
-  (fn [{:keys [db]} [_ [haku-oid hakukohderyhma-oid] application-key]]
+  (fn [{:keys [db]} [_ [haku-oid hakukohderyhma-oid] application-key filters]]
     {:db       (-> db
                    clear-selection
+                   (set-application-filters filters)
                    (assoc-in [:application :selected-hakukohderyhma]
                              [haku-oid hakukohderyhma-oid]))
      :dispatch [:application/fetch-applications-by-hakukohderyhma
@@ -474,9 +466,10 @@
 
 (reg-event-fx
   :application/select-haku
-  (fn [{:keys [db]} [_ haku-oid application-key]]
+  (fn [{:keys [db]} [_ haku-oid application-key filters]]
     {:db       (-> db
                    clear-selection
+                   (set-application-filters filters)
                    (assoc-in [:application :selected-haku] haku-oid))
      :dispatch [:application/fetch-applications-by-haku
                 haku-oid
