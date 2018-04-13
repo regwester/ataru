@@ -19,16 +19,16 @@
 (reg-event-fx
   :application/select-application
   (fn [{:keys [db]} [_ application-key]]
-    (if (not= application-key (get-in db [:application :selected-key]))
-      (let [db (-> db
-                   (assoc-in [:application :selected-key] application-key)
-                   (assoc-in [:application :selected-application-and-form] nil)
-                   (assoc-in [:application :review-comment] nil)
-                   (assoc-in [:application :application-list-expanded?] false)
-                   (assoc-in [:application :information-request] nil))]
-        {:db         db
-         :dispatch-n [[:application/stop-autosave]
-                      [:application/fetch-application application-key]]}))))
+    (when (not= application-key (get-in db [:application :selected-key]))
+      (cljs-util/update-url-with-query-params {:application-key application-key})
+      {:db         (-> db
+                       (assoc-in [:application :selected-key] application-key)
+                       (assoc-in [:application :selected-application-and-form] nil)
+                       (assoc-in [:application :review-comment] nil)
+                       (assoc-in [:application :application-list-expanded?] false)
+                       (assoc-in [:application :information-request] nil))
+       :dispatch-n [[:application/stop-autosave]
+                    [:application/fetch-application application-key]]})))
 
 (defn close-application [db]
   (cljs-util/update-url-with-query-params {:application-key nil})
@@ -204,24 +204,25 @@
 
 (reg-event-fx
   :application/handle-fetch-applications-response
-  (fn [{:keys [db]} [_ {:keys [applications]}]]
-    (let [applications-with-times (map parse-application-time applications)
-          db (-> db
-                 (assoc-in [:application :applications] applications-with-times)
-                 (assoc-in [:application :fetching-applications] false)
-                 (assoc-in [:application :review-state-counts] (review-state-counts applications-with-times))
-                 (assoc-in [:application :attachment-state-counts] (attachment-state-counts applications-with-times))
-                 (assoc-in [:application :sort] application-sorting/initial-sort)
-                 (assoc-in [:application :information-request] nil)
-                 (update-sort (:column application-sorting/initial-sort) false))
-          application-key (if (= 1 (count applications-with-times))
-                            (-> applications-with-times first :key)
-                            (when-let [query-key (:application-key (cljs-util/extract-query-params))]
-                              (some #{query-key} (map :key applications-with-times))))]
-      {:db       db
-       :dispatch (if application-key
-                   [:application/select-application application-key]
-                   [:application/close-application])})))
+  (fn [{:keys [db]} [_ {:keys [applications]} {:keys [application-key]}]]
+    (let [applications-with-times (map parse-application-time applications)]
+      {:db       (-> db
+                     (assoc-in [:application :applications] applications-with-times)
+                     (assoc-in [:application :fetching-applications] false)
+                     (assoc-in [:application :review-state-counts] (review-state-counts applications-with-times))
+                     (assoc-in [:application :attachment-state-counts] (attachment-state-counts applications-with-times))
+                     (assoc-in [:application :sort] application-sorting/initial-sort)
+                     (assoc-in [:application :information-request] nil)
+                     (update-sort (:column application-sorting/initial-sort) false))
+       :dispatch (cond (and (some? application-key)
+                            (some #{application-key} (map :key applications)))
+                       [:application/select-application application-key]
+                       (and (nil? application-key)
+                            (not-empty applications)
+                            (empty? (rest applications)))
+                       [:application/select-application (:key (first applications))]
+                       :else
+                       [:application/close-application])})))
 
 (defn- extract-unselected-review-states-from-query
   [query-param states]
@@ -230,7 +231,7 @@
       (clojure.string/split #",")
       (cljs-util/get-unselected-review-states states)))
 
-(defn fetch-applications-fx [db path]
+(defn fetch-applications-fx [db path application-key]
   {:db       (-> db
                  (assoc-in [:application :fetching-applications] true)
                  (assoc-in [:application :attachment-state-filter] (extract-unselected-review-states-from-query
@@ -246,33 +247,42 @@
    :http     {:method              :get
               :path                path
               :skip-parse-times?   true
-              :handler-or-dispatch :application/handle-fetch-applications-response}})
+              :handler-or-dispatch :application/handle-fetch-applications-response
+              :handler-args        {:application-key application-key}}})
 
 (reg-event-fx
   :application/fetch-applications
-  (fn [{:keys [db]} [_ form-key]]
-    (fetch-applications-fx db (str "/lomake-editori/api/applications/list?formKey=" form-key))))
+  (fn [{:keys [db]} [_ form-key application-key]]
+    (fetch-applications-fx db
+                           (str "/lomake-editori/api/applications/list?formKey=" form-key)
+                           application-key)))
 
 (reg-event-fx
   :application/fetch-applications-by-hakukohde
-  (fn [{:keys [db]} [_ hakukohde-oid]]
-    (fetch-applications-fx db (str "/lomake-editori/api/applications/list?hakukohdeOid=" hakukohde-oid))))
+  (fn [{:keys [db]} [_ hakukohde-oid application-key]]
+    (fetch-applications-fx db
+                           (str "/lomake-editori/api/applications/list?hakukohdeOid=" hakukohde-oid)
+                           application-key)))
 
 (reg-event-fx
   :application/fetch-applications-by-hakukohderyhma
-  (fn [{:keys [db]} [_ [haku-oid hakukohderyhma-oid]]]
-    (fetch-applications-fx db (str "/lomake-editori/api/applications/list"
-                                   "?hakuOid=" haku-oid
-                                   "&hakukohderyhmaOid=" hakukohderyhma-oid))))
+  (fn [{:keys [db]} [_ [haku-oid hakukohderyhma-oid] application-key]]
+    (fetch-applications-fx db
+                           (str "/lomake-editori/api/applications/list"
+                                "?hakuOid=" haku-oid
+                                "&hakukohderyhmaOid=" hakukohderyhma-oid)
+                           application-key)))
 
 (reg-event-fx
   :application/fetch-applications-by-haku
-  (fn [{:keys [db]} [_ haku-oid]]
-    (fetch-applications-fx db (str "/lomake-editori/api/applications/list?hakuOid=" haku-oid))))
+  (fn [{:keys [db]} [_ haku-oid application-key]]
+    (fetch-applications-fx db
+                           (str "/lomake-editori/api/applications/list?hakuOid=" haku-oid)
+                           application-key)))
 
 (reg-event-fx
   :application/fetch-applications-by-term
-  (fn [{:keys [db]} [_ term type]]
+  (fn [{:keys [db]} [_ term type application-key]]
     (let [query-param (case type
                         :application-oid "applicationOid"
                         :person-oid "personOid"
@@ -280,7 +290,9 @@
                         :dob "dob"
                         :email "email"
                         :name "name")]
-      (fetch-applications-fx db (str "/lomake-editori/api/applications/list?" query-param "=" term)))))
+      (fetch-applications-fx db
+                             (str "/lomake-editori/api/applications/list?" query-param "=" term)
+                             application-key))))
 
 (reg-event-db
  :application/review-updated

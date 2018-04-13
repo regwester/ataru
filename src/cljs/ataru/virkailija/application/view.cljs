@@ -341,7 +341,6 @@
 
 (defn- select-application
   [application-key]
-  (cljs-util/update-url-with-query-params {:application-key application-key})
   (dispatch [:application/select-application application-key]))
 
 (defn hakukohde-review-state

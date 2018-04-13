@@ -45,7 +45,7 @@
 
 (reg-event-fx
   :application/search-by-term
-  (fn [{:keys [db]} [_ search-term]]
+  (fn [{:keys [db]} [_ search-term application-key]]
     (let [search-term-ucase (-> search-term
                                 clojure.string/trim
                                 clojure.string/upper-case)
@@ -70,7 +70,7 @@
         {:db                 (set-search-term db search-term)
          :dispatch-debounced {:timeout  500
                               :id       :application-search
-                              :dispatch [:application/fetch-applications-by-term term type]}}
+                              :dispatch [:application/fetch-applications-by-term term type application-key]}}
         {:db (-> db
                  (set-search-term search-term)
                  (assoc-in [:application :applications] nil))}))))
