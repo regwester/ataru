@@ -465,3 +465,15 @@
     (or (-> db :application :selected-application-and-form :form :selected-language keyword)
         (-> db :application :selected-application-and-form :application :lang keyword)
         :fi)))
+
+(re-frame.core/reg-sub
+  :application/eligibility-automatically-checked?
+  (fn [db _]
+    (let [hakukohde (get-in db [:application :selected-review-hakukohde])]
+      (->> (get-in db [:application :events])
+           (filter #(and (= "eligibility-state" (:review-key %))
+                         (= hakukohde (:hakukohde %))))
+           (sort-by :id >)
+           first
+           :event-type
+           (= "eligibility-state-automatically-changed")))))

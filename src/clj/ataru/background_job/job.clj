@@ -2,6 +2,7 @@
   "Public API of the Background Job system"
   (:require
    [ataru.config.core :refer [config]]
+   [clj-time.core :as time]
    [taoensso.timbre :as log]
    [com.stuartsierra.component :as component]
    [ataru.background-job.job-execution :as execution]
@@ -10,10 +11,12 @@
 (defn start-job
   "Start a new background job of type <job-type>.
    initial-state is the initial data map needed to start the job (can be anything)"
-  [system-job-definitions job-type initial-state]
-  (if-let [job-definition (get system-job-definitions job-type)]
-    (job-store/store-new job-type initial-state)
-    (log/error (str "No job definition found for job " job-type))))
+  ([system-job-definitions job-type initial-state]
+   (start-job system-job-definitions job-type initial-state (time/now)))
+  ([system-job-definitions job-type initial-state next-activation]
+   (if-let [job-definition (get system-job-definitions job-type)]
+     (job-store/store-new job-type initial-state next-activation)
+     (log/error (str "No job definition found for job " job-type)))))
 
 (defrecord JobRunner [job-definitions]
   component/Lifecycle

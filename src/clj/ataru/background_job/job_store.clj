@@ -4,25 +4,26 @@
    [taoensso.timbre :as log]
    [camel-snake-kebab.extras :refer [transform-keys]]
    [camel-snake-kebab.core :refer [->snake_case ->kebab-case-keyword]]
-   [clj-time.core :as time]
    [clojure.java.jdbc :as jdbc]
    [ataru.db.db :as db]))
 
 (defqueries "sql/background-job-queries.sql")
 
-(defn store-new [job-type state]
+(defn store-new
+  [job-type state next-activation]
   (jdbc/with-db-transaction [data-source {:datasource (db/get-datasource :db)}]
     (let [connection {:connection data-source}
-          new-job-id (:id (yesql-add-background-job<! {:job_type job-type} connection))]
-      (yesql-add-job-iteration<! {:job_id new-job-id
-                                  :step "initial"
-                                  :final false
-                                  :transition "start"
-                                  :state state
-                                  :next_activation (time/now)
-                                  :retry_count 0
+          new-job-id (:id (yesql-add-background-job<! {:job_type job-type}
+                                                      connection))]
+      (yesql-add-job-iteration<! {:job_id          new-job-id
+                                  :step            "initial"
+                                  :final           false
+                                  :transition      "start"
+                                  :state           state
+                                  :next_activation next-activation
+                                  :retry_count     0
                                   :caused_by_error nil}
-                                  connection)
+                                 connection)
       new-job-id)))
 
 (defn job-iteration->db-format [job-iteration job-id]
