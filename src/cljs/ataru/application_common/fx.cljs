@@ -48,17 +48,24 @@
 (defn- current-val [id]
   (get @validation-sequences id))
 
+(def validation-debounces (atom {}))
+
 (re-frame/reg-fx
  :validate
  (fn [{:keys [value answers field-descriptor editing? on-validated]}]
    (let [id (keyword (:id field-descriptor))
          val (next-val id)]
-     (if (and editing? (:cannot-edit field-descriptor))
-       (on-validated [true []])
-       (async/take! (all-valid? (validatep value answers field-descriptor))
-                    (fn [result]
-                      (when (= val (current-val id))
-                        (on-validated result))))))))
+     (js/clearTimeout (@validation-debounces id))
+     (swap! validation-debounces assoc id
+            (js/setTimeout
+              (fn []
+                (if (and editing? (:cannot-edit field-descriptor))
+                  (on-validated [true []])
+                  (async/take! (all-valid? (validatep value answers field-descriptor))
+                               (fn [result]
+                                 (when (= val (current-val id))
+                                   (on-validated result))))))
+              200)))))
 
 (re-frame/reg-fx
  :validate-every
