@@ -65,7 +65,7 @@
                                (fn [result]
                                  (when (= val (current-val id))
                                    (on-validated result))))))
-              200)))))
+              100)))))
 
 (re-frame/reg-fx
  :validate-every
