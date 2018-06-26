@@ -1,6 +1,7 @@
 (ns ataru.person-service.person-service
   (:require [ataru.cas.client :as cas]
             [ataru.person-service.person-client :as person-client]
+            [ataru.person-service.oppijanumerorekisteri-person-extract :as orpe]
             [com.stuartsierra.component :as component]
             [ataru.config.core :refer [config]]))
 
@@ -32,7 +33,9 @@
   PersonService
 
   (create-or-find-person [{:keys [oppijanumerorekisteri-cas-client]} application]
-    (person-client/create-or-find-person oppijanumerorekisteri-cas-client application))
+    (person-client/create-or-find-person
+     oppijanumerorekisteri-cas-client
+     (orpe/extract-person-from-application application)))
 
   (get-persons [{:keys [oppijanumerorekisteri-cas-client]} oids]
     (person-client/get-persons oppijanumerorekisteri-cas-client oids))
