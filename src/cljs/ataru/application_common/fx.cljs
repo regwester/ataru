@@ -50,37 +50,66 @@
 
 (def validation-debounces (atom {}))
 
+(def validation-debounce-ms 500)
+
+(defn- async-validate-value
+  [value answers field-descriptor editing? on-validated id val]
+  (if (and editing? (:cannot-edit field-descriptor))
+    (on-validated [true []])
+    (async/take! (all-valid? (validatep value answers field-descriptor))
+                 (fn [result]
+                   (when (= val (current-val id))
+                     (on-validated result))))))
+
+(defn- async-validate-values
+  [values answers field-descriptor editing? on-validated id val]
+  (if (and editing? (:cannot-edit field-descriptor))
+    (on-validated [true []])
+    (async/take! (all-valid?
+                   (async/merge
+                     (map (fn [value] (validatep value answers field-descriptor))
+                          values)))
+                 (fn [result]
+                   (when (= val (current-val id))
+                     (on-validated result))))))
+
 (re-frame/reg-fx
- :validate
- (fn [{:keys [value answers field-descriptor editing? on-validated]}]
+  :validate-debounced
+  (fn [{:keys [value answers field-descriptor editing? before-validation on-validated]}]
+    (let [id (keyword (:id field-descriptor))
+          val (next-val id)]
+      (before-validation)
+      (js/clearTimeout (@validation-debounces id))
+      (swap! validation-debounces assoc id
+             (js/setTimeout
+               #(async-validate-value value answers field-descriptor editing? on-validated id val)
+               validation-debounce-ms)))))
+
+(re-frame/reg-fx
+  :validate
+  (fn [{:keys [value answers field-descriptor editing? on-validated]}]
    (let [id (keyword (:id field-descriptor))
          val (next-val id)]
-     (js/clearTimeout (@validation-debounces id))
-     (swap! validation-debounces assoc id
-            (js/setTimeout
-              (fn []
-                (if (and editing? (:cannot-edit field-descriptor))
-                  (on-validated [true []])
-                  (async/take! (all-valid? (validatep value answers field-descriptor))
-                               (fn [result]
-                                 (when (= val (current-val id))
-                                   (on-validated result))))))
-              100)))))
+     (async-validate-value value answers field-descriptor editing? on-validated id val))))
 
 (re-frame/reg-fx
  :validate-every
  (fn [{:keys [values answers field-descriptor editing? on-validated]}]
    (let [id (keyword (:id field-descriptor))
          val (next-val id)]
-     (if (and editing? (:cannot-edit field-descriptor))
-       (on-validated [true []])
-       (async/take! (all-valid?
-                     (async/merge
-                      (map (fn [value] (validatep value answers field-descriptor))
-                           values)))
-                    (fn [result]
-                      (when (= val (current-val id))
-                        (on-validated result))))))))
+     (async-validate-values values answers field-descriptor editing? on-validated id val))))
+
+(re-frame/reg-fx
+  :validate-every-debounced
+  (fn [{:keys [values answers field-descriptor editing? before-validation on-validated]}]
+    (let [id (keyword (:id field-descriptor))
+          val (next-val id)]
+      (before-validation)
+      (js/clearTimeout (@validation-debounces id))
+      (swap! validation-debounces assoc id
+             (js/setTimeout
+               #(async-validate-values values answers field-descriptor editing? on-validated id val)
+               validation-debounce-ms)))))
 
 (defn- confirm-window-close!
   [event]
