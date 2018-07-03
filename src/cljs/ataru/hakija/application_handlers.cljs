@@ -464,6 +464,7 @@
         (assoc :flat-form-content (autil/flatten-form-fields (:content form)))
         (assoc-in [:application :answers] (create-initial-answers form preselected-hakukohde))
         (assoc-in [:application :show-hakukohde-search] false)
+        (assoc-in [:application :validators-processing] #{})
         (assoc :wrapper-sections (extract-wrapper-sections form))
         (merge-submitted-answers answers)
         (original-values->answers)
@@ -536,6 +537,16 @@
         (not (empty? rules))
         (assoc :dispatch [:application/run-rules rules])))))
 
+(reg-event-db
+  :application/set-validator-processing
+  (fn [db [_ id]]
+    (update-in db [:application :validators-processing] conj id)))
+
+(reg-event-db
+  :application/set-validator-processed
+  (fn [db [_ id]]
+    (update-in db [:application :validators-processing] disj id)))
+
 (defn- transform-value [value field-descriptor]
   (let [t (case (:id field-descriptor)
             "birth-date" value-transformers/birth-date
@@ -545,20 +556,23 @@
 (reg-event-fx
   :application/set-application-field
   (fn [{db :db} [_ field value]]
-    (let [value    (transform-value value field)
-          id       (keyword (:id field))
-          answers  (get-in db [:application :answers])]
-      {:db (-> db
-               (assoc-in [:application :answers id :value] value)
-               (set-multi-value-changed id :value)
-               (set-field-visibility field))
-       :validate {:value value
-                  :answers answers
-                  :field-descriptor field
-                  :editing? (get-in db [:application :editing?])
-                  :on-validated (fn [[valid? errors]]
-                                  (dispatch [:application/set-application-field-valid
-                                             field valid? errors]))}})))
+    (let [value   (transform-value value field)
+          id      (keyword (:id field))
+          answers (get-in db [:application :answers])]
+      {:db                 (-> db
+                               (assoc-in [:application :answers id :value] value)
+                               (update-in [:application :validators-processing] conj id)
+                               (set-multi-value-changed id :value)
+                               (set-field-visibility field))
+       :validate-debounced {:value             value
+                            :answers           answers
+                            :field-descriptor  field
+                            :editing?          (get-in db [:application :editing?])
+                            :before-validation #(dispatch [:application/set-validator-processing id])
+                            :on-validated      (fn [[valid? errors]]
+                                                 (dispatch [:application/set-validator-processed id])
+                                                 (dispatch [:application/set-application-field-valid
+                                                            field valid? errors]))}})))
 
 (defn- set-repeatable-field-values
   [db field-descriptor value data-idx question-group-idx]
@@ -614,20 +628,21 @@
 (reg-event-fx
   :application/set-repeatable-application-field
   (fn [{db :db} [_ field-descriptor value data-idx question-group-idx]]
-    {:db (-> db
-             (set-repeatable-field-values field-descriptor value data-idx question-group-idx)
-             (set-repeatable-field-value field-descriptor question-group-idx))
-     :validate {:value value
-                :answers (get-in db [:application :answers])
-                :field-descriptor field-descriptor
-                :editing? (get-in db [:application :editing?])
-                :on-validated (fn [[valid? errors]]
-                                (dispatch [:application/set-repeatable-application-field-valid
-                                           field-descriptor
-                                           question-group-idx
-                                           data-idx
-                                           (required? field-descriptor)
-                                           valid?]))}}))
+    {:db                 (-> db
+                             (set-repeatable-field-values field-descriptor value data-idx question-group-idx)
+                             (set-repeatable-field-value field-descriptor question-group-idx))
+     :validate-debounced {:value             value
+                          :answers           (get-in db [:application :answers])
+                          :field-descriptor  field-descriptor
+                          :editing?          (get-in db [:application :editing?])
+                          :before-validation #(dispatch [:application/set-validator-processing (keyword (:id field-descriptor))])
+                          :on-validated      (fn [[valid? errors]]
+                                               (dispatch [:application/set-repeatable-application-field-valid
+                                                          field-descriptor
+                                                          question-group-idx
+                                                          data-idx
+                                                          (required? field-descriptor)
+                                                          valid?]))}}))
 
 (defn- remove-repeatable-field-value
   [db field-descriptor data-idx question-group-idx]
@@ -719,79 +734,83 @@
                                                              question-group-idx)))
                  (set-multi-value-changed id :value))]
       (if question-group-idx
-        {:db db
-         :validate-every {:values (get-in db [:application :answers id :value])
-                          :answers (get-in db [:application :answers])
-                          :field-descriptor field-descriptor
-                          :editing? (get-in db [:application :editing?])
-                          :on-validated (fn [[valid? errors]]
-                                          (dispatch [:application/set-multiple-choice-valid
-                                                     field-descriptor
-                                                     valid?]))}}
-        {:db (set-field-visibility db field-descriptor)
-         :validate {:value (get-in db [:application :answers id :value])
-                    :answers (get-in db [:application :answers])
-                    :field-descriptor field-descriptor
-                    :editing? (get-in db [:application :editing?])
-                    :on-validated (fn [[valid? errors]]
-                                    (dispatch [:application/set-multiple-choice-valid
-                                               field-descriptor
-                                               valid?]))}}))))
+        {:db                       db
+         :validate-every-debounced {:values            (get-in db [:application :answers id :value])
+                                    :answers           (get-in db [:application :answers])
+                                    :field-descriptor  field-descriptor
+                                    :editing?          (get-in db [:application :editing?])
+                                    :before-validation #(dispatch [:application/set-validator-processing id])
+                                    :on-validated      (fn [[valid? errors]]
+                                                         (dispatch [:application/set-multiple-choice-valid
+                                                                    field-descriptor
+                                                                    valid?]))}}
+        {:db                 (set-field-visibility db field-descriptor)
+         :validate-debounced {:value             (get-in db [:application :answers id :value])
+                              :answers           (get-in db [:application :answers])
+                              :field-descriptor  field-descriptor
+                              :editing?          (get-in db [:application :editing?])
+                              :before-validation #(dispatch [:application/set-validator-processing id])
+                              :on-validated      (fn [[valid? errors]]
+                                                   (dispatch [:application/set-multiple-choice-valid
+                                                              field-descriptor
+                                                              valid?]))}}))))
 
 (reg-event-fx
   :application/select-single-choice-button
   (fn [{db :db} [_ value field-descriptor question-group-idx]]
-    (let [id (keyword (:id field-descriptor))
-          button-path [:application :answers id]
-          value-path (cond-> button-path
-                       (some? question-group-idx)
-                       (conj :values question-group-idx 0)
-                       true
-                       (conj :value))
+    (let [id            (keyword (:id field-descriptor))
+          button-path   [:application :answers id]
+          value-path    (cond-> button-path
+                                (some? question-group-idx)
+                                (conj :values question-group-idx 0)
+                                true
+                                (conj :value))
           current-value (get-in db value-path)
-          new-value (when (not= value current-value) value)]
-      {:db (if (some? question-group-idx)
-             (-> db
-                 (update-in (conj button-path :values) (util/vector-of-length (inc question-group-idx)))
-                 (update-in (conj button-path :values question-group-idx) (fnil identity []))
-                 (assoc-in value-path new-value)
-                 (update-in button-path (fn [answer]
-                                          (assoc answer :value (mapv (partial mapv :value)
-                                                                     (:values answer)))))
-                 (set-multi-value-changed id :value))
-             (-> db
-                 (assoc-in value-path new-value)
-                 (set-multi-value-changed id :value)
-                 (set-field-visibility field-descriptor)))
-       :validate {:value new-value
-                  :answers (get-in db [:application :answers])
-                  :field-descriptor field-descriptor
-                  :editing? (get-in db [:application :editing?])
-                  :on-validated (fn [[valid? errors]]
-                                  (dispatch [:application/set-repeatable-application-field-valid
-                                             field-descriptor
-                                             question-group-idx
-                                             0
-                                             (required? field-descriptor)
-                                             valid?]))}})))
+          new-value     (when (not= value current-value) value)]
+      {:db                 (if (some? question-group-idx)
+                             (-> db
+                                 (update-in (conj button-path :values) (util/vector-of-length (inc question-group-idx)))
+                                 (update-in (conj button-path :values question-group-idx) (fnil identity []))
+                                 (assoc-in value-path new-value)
+                                 (update-in button-path (fn [answer]
+                                                          (assoc answer :value (mapv (partial mapv :value)
+                                                                                     (:values answer)))))
+                                 (set-multi-value-changed id :value))
+                             (-> db
+                                 (assoc-in value-path new-value)
+                                 (set-multi-value-changed id :value)
+                                 (set-field-visibility field-descriptor)))
+       :validate-debounced {:value             new-value
+                            :answers           (get-in db [:application :answers])
+                            :field-descriptor  field-descriptor
+                            :editing?          (get-in db [:application :editing?])
+                            :before-validation #(dispatch [:application/set-validator-processing id])
+                            :on-validated      (fn [[valid? errors]]
+                                                 (dispatch [:application/set-repeatable-application-field-valid
+                                                            field-descriptor
+                                                            question-group-idx
+                                                            0
+                                                            (required? field-descriptor)
+                                                            valid?]))}})))
 
 (reg-event-fx
   :application/set-adjacent-field-answer
   (fn [{db :db} [_ field-descriptor idx value question-group-idx]]
-    {:db (-> db
-             (set-repeatable-field-values field-descriptor value idx question-group-idx)
-             (set-repeatable-field-value field-descriptor question-group-idx))
-     :validate {:value value
-                :answers (get-in db [:application :answers])
-                :field-descriptor field-descriptor
-                :editing? (get-in db [:application :editing?])
-                :on-validated (fn [[valid? errors]]
-                                (dispatch [:application/set-repeatable-application-field-valid
-                                           field-descriptor
-                                           question-group-idx
-                                           idx
-                                           (required? field-descriptor)
-                                           valid?]))}}))
+    {:db                 (-> db
+                             (set-repeatable-field-values field-descriptor value idx question-group-idx)
+                             (set-repeatable-field-value field-descriptor question-group-idx))
+     :validate-debounced {:value             value
+                          :answers           (get-in db [:application :answers])
+                          :field-descriptor  field-descriptor
+                          :editing?          (get-in db [:application :editing?])
+                          :before-validation #(dispatch [:application/set-validator-processing (keyword (:id field-descriptor))])
+                          :on-validated      (fn [[valid? errors]]
+                                               (dispatch [:application/set-repeatable-application-field-valid
+                                                          field-descriptor
+                                                          question-group-idx
+                                                          idx
+                                                          (required? field-descriptor)
+                                                          valid?]))}}))
 
 (reg-event-fx
   :application/add-adjacent-fields
@@ -890,22 +909,23 @@
   :application/handle-attachment-upload
   (fn [{db :db} [_ field-descriptor component-id attachment-idx question-group-idx response]]
     (let [path (if question-group-idx
-                  [:application :answers (keyword component-id) :values question-group-idx attachment-idx]
-                  [:application :answers (keyword component-id) :values attachment-idx])]
-      {:db (-> db
-               (update-in path
-                          merge
-                          {:value response :valid true :status :ready})
-               (set-multi-value-changed (keyword component-id) :values))
-       :validate {:value (get-in db path)
-                  :answers (get-in db [:application :answers])
-                  :field-descriptor field-descriptor
-                  :editing? (get-in db [:application :editing?])
-                  :on-validated (fn [[valid? errors]]
-                                  (dispatch [:application/set-attachment-valid
-                                             (keyword component-id)
-                                             (required? field-descriptor)
-                                             valid?]))}})))
+                 [:application :answers (keyword component-id) :values question-group-idx attachment-idx]
+                 [:application :answers (keyword component-id) :values attachment-idx])]
+      {:db                 (-> db
+                               (update-in path
+                                          merge
+                                          {:value response :valid true :status :ready})
+                               (set-multi-value-changed (keyword component-id) :values))
+       :validate-debounced {:value             (get-in db path)
+                            :answers           (get-in db [:application :answers])
+                            :field-descriptor  field-descriptor
+                            :editing?          (get-in db [:application :editing?])
+                            :before-validation #(dispatch [:application/set-validator-processing (keyword (:id field-descriptor))])
+                            :on-validated      (fn [[valid? errors]]
+                                                 (dispatch [:application/set-attachment-valid
+                                                            (keyword component-id)
+                                                            (required? field-descriptor)
+                                                            valid?]))}})))
 
 (defn- rate-limit-error? [response]
   (= (:status response) 429))
