@@ -1,8 +1,6 @@
 (ns ataru.hakija.subs
   (:require-macros [reagent.ratom :refer [reaction]])
-  (:require [re-frame.core :as re-frame]
-            [ataru.util :as util]
-            [ataru.hakija.application :refer [answers->valid-status]]))
+  (:require [re-frame.core :as re-frame]))
 
 (re-frame/reg-sub
   :state-query
@@ -12,9 +10,7 @@
 (re-frame/reg-sub
   :application/valid-status
   (fn [db]
-    (answers->valid-status (-> db :application :answers)
-                           (-> db :application :ui)
-                           (-> db :flat-form-content))))
+    (-> db :application :answers-validity)))
 
 (re-frame/reg-sub
  :application/can-apply?

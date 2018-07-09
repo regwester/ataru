@@ -7,7 +7,8 @@
             [cljs.core.match :refer-macros [match]]
             [ataru.hakija.application :refer [create-initial-answers
                                               create-application-to-submit
-                                              extract-wrapper-sections]]
+                                              extract-wrapper-sections
+                                              answers->valid-status]]
             [taoensso.timbre :refer-macros [spy debug]]
             [clojure.data :as d]
             [ataru.component-data.value-transformers :as value-transformers]
@@ -455,14 +456,16 @@
                                                             first
                                                             :end))
                                   (assoc :time-delta-from-server (- (-> form :load-time) (.getTime (js/Date.)))))
-        preselected-hakukohde (-> db :application :preselected-hakukohde)]
+        preselected-hakukohde (-> db :application :preselected-hakukohde)
+        initial-answers       (create-initial-answers form preselected-hakukohde)
+        flat-form-content     (autil/flatten-form-fields (:content form))]
     (-> db
         (update :form (fn [{:keys [selected-language]}]
                         (cond-> form
                                 (some? selected-language)
                                 (assoc :selected-language selected-language))))
-        (assoc :flat-form-content (autil/flatten-form-fields (:content form)))
-        (assoc-in [:application :answers] (create-initial-answers form preselected-hakukohde))
+        (assoc :flat-form-content flat-form-content)
+        (assoc-in [:application :answers] initial-answers)
         (assoc-in [:application :show-hakukohde-search] false)
         (assoc-in [:application :validators-processing] #{})
         (assoc :wrapper-sections (extract-wrapper-sections form))
@@ -475,7 +478,8 @@
   (fn [_ _]
     {:dispatch-n [[:application/hide-hakukohteet-if-no-tarjonta]
                   [:application/hakukohde-query-change "" 0]
-                  [:application/set-page-title]]}))
+                  [:application/set-page-title]
+                  [:application/update-answers-validity]]}))
 
 (defn- handle-get-application [{:keys [db]}
                                [_
@@ -533,9 +537,11 @@
           rules (:rules field-descriptor)]
       (cond-> {:db (-> db
                        (assoc-in [:application :answers id :valid] valid?)
-                       (assoc-in [:application :answers id :errors] errors))}
+                       (assoc-in [:application :answers id :errors] errors))
+               :dispatch-n [[:application/update-answers-validity]
+                            [:application/set-validator-processed id]]}
         (not (empty? rules))
-        (assoc :dispatch [:application/run-rules rules])))))
+        (update :dispatch-n conj [:application/run-rules rules])))))
 
 (reg-event-db
   :application/set-validator-processing
@@ -543,9 +549,17 @@
     (update-in db [:application :validators-processing] conj id)))
 
 (reg-event-db
+  :application/update-answers-validity
+  (fn [db _]
+    (assoc-in db [:application :answers-validity] (answers->valid-status (-> db :application :answers)
+                                                                         (-> db :application :ui)
+                                                                         (-> db :flat-form-content)))))
+
+(reg-event-fx
   :application/set-validator-processed
-  (fn [db [_ id]]
-    (update-in db [:application :validators-processing] disj id)))
+  (fn [{:keys [db]} [_ id]]
+    {:db       (update-in db [:application :validators-processing] disj id)
+     :dispatch [:application/update-answers-validity]}))
 
 (defn- transform-value [value field-descriptor]
   (let [t (case (:id field-descriptor)
@@ -570,7 +584,6 @@
                             :editing?          (get-in db [:application :editing?])
                             :before-validation #(dispatch [:application/set-validator-processing id])
                             :on-validated      (fn [[valid? errors]]
-                                                 (dispatch [:application/set-validator-processed id])
                                                  (dispatch [:application/set-application-field-valid
                                                             field valid? errors]))}})))
 
@@ -614,35 +627,51 @@
                                                      all-valid?))))
 
 (reg-event-fx
+  :application/set-application-field-valid
+  (fn [{db :db} [_ field-descriptor valid? errors]]
+    (let [id (keyword (:id field-descriptor))
+          rules (:rules field-descriptor)]
+      (cond-> {:db (-> db
+                       (assoc-in [:application :answers id :valid] valid?)
+                       (assoc-in [:application :answers id :errors] errors))
+               :dispatch-n [[:application/update-answers-validity]
+                            [:application/set-validator-processed id]]}
+              (not (empty? rules))
+              (update :dispatch-n conj [:application/run-rules rules])))))
+
+(reg-event-fx
   :application/set-repeatable-application-field-valid
   (fn [{:keys [db]} [_ field-descriptor group-idx data-idx required? valid?]]
     (let [id    (keyword (:id field-descriptor))
           rules (:rules field-descriptor)]
-      (cond-> {:db (-> db
-                       (set-repeatable-application-repeated-field-valid id group-idx data-idx valid?)
-                       (set-repeatable-application-field-top-level-valid id group-idx required? valid?))}
+      (cond-> {:db         (-> db
+                               (set-repeatable-application-repeated-field-valid id group-idx data-idx valid?)
+                               (set-repeatable-application-field-top-level-valid id group-idx required? valid?))
+               :dispatch-n [[:application/update-answers-validity]
+                            [:application/set-validator-processed id]]}
               (not (empty? rules))
-              (assoc :dispatch [:application/run-rules rules])))))
+              (update :dispatch-n conj [:application/run-rules rules])))))
 
 
 (reg-event-fx
   :application/set-repeatable-application-field
   (fn [{db :db} [_ field-descriptor value data-idx question-group-idx]]
-    {:db                 (-> db
-                             (set-repeatable-field-values field-descriptor value data-idx question-group-idx)
-                             (set-repeatable-field-value field-descriptor question-group-idx))
-     :validate-debounced {:value             value
-                          :answers           (get-in db [:application :answers])
-                          :field-descriptor  field-descriptor
-                          :editing?          (get-in db [:application :editing?])
-                          :before-validation #(dispatch [:application/set-validator-processing (keyword (:id field-descriptor))])
-                          :on-validated      (fn [[valid? errors]]
-                                               (dispatch [:application/set-repeatable-application-field-valid
-                                                          field-descriptor
-                                                          question-group-idx
-                                                          data-idx
-                                                          (required? field-descriptor)
-                                                          valid?]))}}))
+    (let [id (keyword (:id field-descriptor))]
+      {:db                 (-> db
+                               (set-repeatable-field-values field-descriptor value data-idx question-group-idx)
+                               (set-repeatable-field-value field-descriptor question-group-idx))
+       :validate-debounced {:value             value
+                            :answers           (get-in db [:application :answers])
+                            :field-descriptor  field-descriptor
+                            :editing?          (get-in db [:application :editing?])
+                            :before-validation #(dispatch [:application/set-validator-processing id])
+                            :on-validated      (fn [[valid? errors]]
+                                                 (dispatch [:application/set-repeatable-application-field-valid
+                                                            field-descriptor
+                                                            question-group-idx
+                                                            data-idx
+                                                            (required? field-descriptor)
+                                                            valid?]))}})))
 
 (defn- remove-repeatable-field-value
   [db field-descriptor data-idx question-group-idx]

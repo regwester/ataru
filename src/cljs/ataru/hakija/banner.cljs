@@ -151,10 +151,10 @@
            (str "Hakuaikaa jäljellä " time-left-text)])))))
 
 (defn status-controls []
-  (let [valid-status  (subscribe [:application/valid-status])
-        submit-status (subscribe [:state-query [:application :submit-status]])
-        can-apply?    (subscribe [:application/can-apply?])
-        editing?      (subscribe [:state-query [:application :editing?]])
+  (let [valid-status     (subscribe [:application/valid-status])
+        submit-status    (subscribe [:state-query [:application :submit-status]])
+        can-apply?       (subscribe [:application/can-apply?])
+        editing?         (subscribe [:state-query [:application :editing?]])
         preview-enabled? (subscribe [:state-query [:application :preview-enabled]])]
     (when (or @can-apply? @editing?)
       [:div.application__status-controls-container
