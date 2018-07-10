@@ -728,20 +728,22 @@
     (or (f db)
         db)))
 
-(reg-event-db
+(reg-event-fx
   :application/handle-postal-code-input
-  (fn [db [_ postal-office-name]]
-    (update-in db [:application :answers :postal-office]
-               merge {:value (:fi postal-office-name) :valid true})))
+  (fn [{:keys [db]} [_ postal-office-name]]
+    {:db       (update-in db [:application :answers :postal-office]
+                          merge {:value (:fi postal-office-name) :valid true})
+     :dispatch [:application/update-answers-validity]}))
 
-(reg-event-db
+(reg-event-fx
   :application/handle-postal-code-error
-  (fn [db _]
-    (-> db
-        (update-in [:application :answers :postal-code]
-                   merge {:valid false})
-        (update-in [:application :answers :postal-office]
-                   merge {:value "" :valid false}))))
+  (fn [{:keys [db]} _]
+    {:db       (-> db
+                   (update-in [:application :answers :postal-code]
+                              merge {:valid false})
+                   (update-in [:application :answers :postal-office]
+                              merge {:value "" :valid false}))
+     :dispatch [:application/update-answers-validity]}))
 
 (reg-event-fx
   :application/set-multiple-choice-valid
