@@ -523,10 +523,12 @@
 (reg-event-fx
   :application/textual-field-blur
   (fn [{db :db} [_ field]]
-    (let [id (keyword (:id field))
+    (let [id     (keyword (:id field))
           answer (get-in db [:application :answers id])]
       {:dispatch-n (if (or (empty? (:blur-rules field))
-                           (not (:valid answer)))
+                           (and
+                             (-> answer :valid not)
+                             (not (contains? (-> db :application :validators-processing set) id))))
                      []
                      [[:application/run-rules (:blur-rules field)]])})))
 
