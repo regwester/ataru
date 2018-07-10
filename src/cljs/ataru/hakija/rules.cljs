@@ -168,7 +168,7 @@
         postal-code (-> answers :postal-code)
         auto-input? (and is-finland?
                          (not (clojure.string/blank? (:value postal-code)))
-                         (:valid postal-code))]
+                         (= 5 (count (:value postal-code))))]
     (when auto-input?
       (ajax/get (str "/hakemus/api/postal-codes/" (:value postal-code))
                 :application/handle-postal-code-input

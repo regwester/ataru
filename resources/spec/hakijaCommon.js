@@ -50,6 +50,10 @@ function invalidFieldsStatus() {
   return testFrame().find('.application__invalid-field-status-title')
 }
 
+function invalidFieldNames() {
+  return _.map(testFrame().find('.application__invalid-fields > a > div'), function (e) { return $(e).text() })
+}
+
 function selectedHakukohteet() {
   return testFrame().find('.application__hakukohde-selected-list').find('.application__hakukohde-row')
 }
