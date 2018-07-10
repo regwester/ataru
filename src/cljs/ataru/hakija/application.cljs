@@ -97,6 +97,11 @@
                        false
                        (= 0 (count invalid-fields)))}))
 
+(defn db->valid-status [db]
+  (answers->valid-status (-> db :application :answers)
+                         (-> db :application :ui)
+                         (-> db :flat-form-content)))
+
 (defn form->flat-form-map [form]
   (into {}
         (map

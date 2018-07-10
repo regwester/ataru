@@ -8,7 +8,7 @@
             [ataru.hakija.application :refer [create-initial-answers
                                               create-application-to-submit
                                               extract-wrapper-sections
-                                              answers->valid-status]]
+                                              db->valid-status]]
             [taoensso.timbre :refer-macros [spy debug]]
             [clojure.data :as d]
             [ataru.component-data.value-transformers :as value-transformers]
@@ -553,9 +553,7 @@
 (reg-event-db
   :application/update-answers-validity
   (fn [db _]
-    (assoc-in db [:application :answers-validity] (answers->valid-status (-> db :application :answers)
-                                                                         (-> db :application :ui)
-                                                                         (-> db :flat-form-content)))))
+    (assoc-in db [:application :answers-validity] (db->valid-status db))))
 
 (reg-event-fx
   :application/set-validator-processed
