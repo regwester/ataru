@@ -91,7 +91,9 @@
                                          (not (:valid answers))
                                          (get-in ui [key :visible?] true)
                                          (not-extra-answer? key question-ids))]
-                          (assoc (select-keys answers [:label]) :key key))]
+                          (do
+                            (println "invalid field" key)
+                            (assoc (select-keys answers [:label]) :key key)))]
     {:invalid-fields invalid-fields
      :valid          (if (empty? answer-validity)
                        false
