@@ -69,8 +69,10 @@
   (let [secret            (subscribe [:state-query [:application :secret]])
         virkailija-secret (subscribe [:state-query [:application :virkailija-secret]])
         editing           (subscribe [:state-query [:application :editing?]])
-        values-changed?   (subscribe [:state-query [:application :values-changed?]])]
+        values-changed?   (subscribe [:state-query [:application :values-changed?]])
+        validators-processing (subscribe [:state-query [:application :validators-processing]])]
     (fn [valid-status submit-status]
+      (println "send-button" @validators-processing)
       (match submit-status
              :submitted [:div.application__sent-placeholder.animated.fadeIn
                          [:i.zmdi.zmdi-check]
@@ -81,7 +83,8 @@
              :else [:button.application__send-application-button
                     {:disabled (or (not (:valid valid-status))
                                    (contains? #{:submitting :submitted} submit-status)
-                                   (and @editing (empty? @values-changed?)))
+                                   (and @editing (empty? @values-changed?))
+                                   (not (empty? @validators-processing)))
                      :on-click #(if @editing
                                   (dispatch [:application/edit])
                                   (dispatch [:application/submit]))}

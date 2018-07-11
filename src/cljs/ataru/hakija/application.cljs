@@ -94,6 +94,7 @@
                           (do
                             (println "invalid field" key)
                             (assoc (select-keys answers [:label]) :key key)))]
+    (println "----")
     {:invalid-fields invalid-fields
      :valid          (if (empty? answer-validity)
                        false

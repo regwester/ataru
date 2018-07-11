@@ -108,7 +108,7 @@
         setNthFieldSubInputValue(31, 3, 'A2'),
         setNthFieldSubInputValue(31, 5, 'C2'),
         setNthFieldInputValue(32, "1,323"),
-        wait.forMilliseconds(600)
+        wait.until(function() { return !submitButton().prop('disabled') })
       )
       it('works and validates correctly', function() {
         expect(invalidFieldNames().join(";")).to.equal("")
