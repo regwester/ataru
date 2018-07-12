@@ -528,7 +528,7 @@
       {:dispatch-n (if (or (empty? (:blur-rules field))
                            (and
                              (-> answer :valid not)
-                             (not (contains? (-> db :application :validators-processing set) id))))
+                             (not (contains? (-> db :application :validators-processing) id))))
                      []
                      [[:application/run-rules (:blur-rules field)]])})))
 
@@ -644,6 +644,7 @@
   (fn [{:keys [db]} [_ field-descriptor group-idx data-idx required? valid?]]
     (let [id    (keyword (:id field-descriptor))
           rules (:rules field-descriptor)]
+      (println "set repeatable valid" id)
       (cond-> {:db         (-> db
                                (set-repeatable-application-repeated-field-valid id group-idx data-idx valid?)
                                (set-repeatable-application-field-top-level-valid id group-idx required? valid?))
@@ -657,6 +658,7 @@
   :application/set-repeatable-application-field
   (fn [{db :db} [_ field-descriptor value data-idx question-group-idx]]
     (let [id (keyword (:id field-descriptor))]
+      (println "set repeatable" id)
       {:db                 (-> db
                                (set-repeatable-field-values field-descriptor value data-idx question-group-idx)
                                (set-repeatable-field-value field-descriptor question-group-idx))
@@ -748,10 +750,12 @@
 (reg-event-fx
   :application/set-multiple-choice-valid
   (fn [{db :db} [_ field-descriptor valid?]]
-    (let [rules (:rules field-descriptor)]
-      (cond-> {:db (assoc-in db [:application :answers (keyword (:id field-descriptor)) :valid] valid?)}
+    (let [rules (:rules field-descriptor)
+          id    (keyword (:id field-descriptor))]
+      (cond-> {:db         (assoc-in db [:application :answers id :valid] valid?)
+               :dispatch-n [[:application/set-validator-processed id]]}
               (not (empty? rules))
-              (assoc :dispatch [:application/run-rules rules])))))
+              (update :dispatch-n conj [:application/run-rules rules])))))
 
 (reg-event-fx
   :application/toggle-multiple-choice-option
