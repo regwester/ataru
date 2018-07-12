@@ -667,6 +667,7 @@
                             :answers           (get-in db [:application :answers])
                             :field-descriptor  field-descriptor
                             :editing?          (get-in db [:application :editing?])
+                            :field-idx         data-idx
                             :before-validation #(dispatch [:application/set-validator-processing id])
                             :on-validated      (fn [[valid? errors]]
                                                  (dispatch [:application/set-repeatable-application-field-valid
