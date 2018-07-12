@@ -58,8 +58,10 @@
     (on-validated [true []])
     (async/take! (all-valid? (validatep value answers field-descriptor))
                  (fn [result]
-                   (when (= val (current-val id))
-                     (on-validated result))))))
+                   (println "async-validated" id value result)
+                   (if (= val (current-val id))
+                     (on-validated result)
+                     (println "outdated val"))))))
 
 (defn- async-validate-values
   [values answers field-descriptor editing? on-validated id val]
@@ -75,14 +77,16 @@
 
 (re-frame/reg-fx
   :validate-debounced
-  (fn [{:keys [value answers field-descriptor editing? before-validation on-validated]}]
-    (let [id (keyword (:id field-descriptor))
-          val (next-val id)]
+  (fn [{:keys [value answers field-descriptor editing? before-validation on-validated field-idx group-idx]}]
+    (let [id          (keyword (:id field-descriptor))
+          debounce-id (keyword (str (name id) "-" field-idx "-" group-idx))
+          val         (next-val debounce-id)]
+      (println "validate-debounced" debounce-id)
       (before-validation)
-      (js/clearTimeout (@validation-debounces id))
-      (swap! validation-debounces assoc id
+      (js/clearTimeout (@validation-debounces debounce-id))
+      (swap! validation-debounces assoc debounce-id
              (js/setTimeout
-               #(async-validate-value value answers field-descriptor editing? on-validated id val)
+               #(async-validate-value value answers field-descriptor editing? on-validated debounce-id val)
                validation-debounce-ms)))))
 
 (re-frame/reg-fx
@@ -102,13 +106,14 @@
 (re-frame/reg-fx
   :validate-every-debounced
   (fn [{:keys [values answers field-descriptor editing? before-validation on-validated]}]
-    (let [id (keyword (:id field-descriptor))
-          val (next-val id)]
+    (let [id          (keyword (:id field-descriptor))
+          debounce-id (keyword (str (name id) "-" field-idx "-" group-idx))
+          val         (next-val debounce-id)]
       (before-validation)
-      (js/clearTimeout (@validation-debounces id))
-      (swap! validation-debounces assoc id
+      (js/clearTimeout (@validation-debounces debounce-id))
+      (swap! validation-debounces assoc debounce-id
              (js/setTimeout
-               #(async-validate-values values answers field-descriptor editing? on-validated id val)
+               #(async-validate-values values answers field-descriptor editing? on-validated debounce-id val)
                validation-debounce-ms)))))
 
 (defn- confirm-window-close!

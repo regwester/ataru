@@ -553,6 +553,7 @@
 (reg-event-db
   :application/update-answers-validity
   (fn [db _]
+    (println "update validity" (-> db :application :answers))
     (assoc-in db [:application :answers-validity] (db->valid-status db))))
 
 (reg-event-fx
@@ -644,7 +645,7 @@
   (fn [{:keys [db]} [_ field-descriptor group-idx data-idx required? valid?]]
     (let [id    (keyword (:id field-descriptor))
           rules (:rules field-descriptor)]
-      (println "set repeatable valid" id)
+      (println "set repeatable valid" id group-idx data-idx valid?)
       (cond-> {:db         (-> db
                                (set-repeatable-application-repeated-field-valid id group-idx data-idx valid?)
                                (set-repeatable-application-field-top-level-valid id group-idx required? valid?))
@@ -696,9 +697,9 @@
       true
       (set-repeatable-field-value field-descriptor question-group-idx))))
 
-(reg-event-db
+(reg-event-fx
   :application/remove-repeatable-application-field-value
-  (fn [db [_ field-descriptor data-idx question-group-idx]]
+  (fn [{:keys [db]} [_ field-descriptor data-idx question-group-idx]]
     (remove-repeatable-field-value db field-descriptor data-idx question-group-idx)))
 
 (defn default-error-handler [db [_ response]]
@@ -820,6 +821,7 @@
                             :field-descriptor  field-descriptor
                             :editing?          (get-in db [:application :editing?])
                             :before-validation #(dispatch [:application/set-validator-processing id])
+                            :question-group-idx question-group-idx
                             :on-validated      (fn [[valid? errors]]
                                                  (dispatch [:application/set-repeatable-application-field-valid
                                                             field-descriptor
@@ -831,6 +833,7 @@
 (reg-event-fx
   :application/set-adjacent-field-answer
   (fn [{db :db} [_ field-descriptor idx value question-group-idx]]
+    (println "set adjacent" (:id field-descriptor) idx question-group-idx value)
     {:db                 (-> db
                              (set-repeatable-field-values field-descriptor value idx question-group-idx)
                              (set-repeatable-field-value field-descriptor question-group-idx))
@@ -838,6 +841,8 @@
                           :answers           (get-in db [:application :answers])
                           :field-descriptor  field-descriptor
                           :editing?          (get-in db [:application :editing?])
+                          :field-idx         (or idx 0)
+                          :group-idx         (or question-group-idx 0)
                           :before-validation #(dispatch [:application/set-validator-processing (keyword (:id field-descriptor))])
                           :on-validated      (fn [[valid? errors]]
                                                (dispatch [:application/set-repeatable-application-field-valid
@@ -861,12 +866,13 @@
              []
              (:children field-descriptor))}))
 
-(reg-event-db
+(reg-event-fx
   :application/remove-adjacent-field
-  (fn [db [_ field-descriptor index]]
-    (reduce #(remove-repeatable-field-value %1 %2 index nil)
-            db
-            (:children field-descriptor))))
+  (fn [{:keys [db]} [_ field-descriptor index]]
+    {:db       (reduce #(remove-repeatable-field-value %1 %2 index nil)
+                       db
+                       (:children field-descriptor))
+     :dispatch [:application/update-answers-validity]}))
 
 (reg-event-fx
   :application/add-single-attachment

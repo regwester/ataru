@@ -92,9 +92,9 @@
                                          (get-in ui [key :visible?] true)
                                          (not-extra-answer? key question-ids))]
                           (do
-                            (println "invalid field" key)
+                            (println "invalid field" key (key all-answers))
                             (assoc (select-keys answers [:label]) :key key)))]
-    (println "----")
+    (println "---- answers-valid")
     {:invalid-fields invalid-fields
      :valid          (if (empty? answer-validity)
                        false
