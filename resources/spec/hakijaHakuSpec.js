@@ -57,13 +57,13 @@
         }),
         wait.until(function () {
           return selectedHakukohteet().length === 1
-        })
+        }),
+        wait.until(function () { return invalidFieldsStatus().text() === 'Tarkista 10 tietoa'})
       )
 
       it('has correct data', function () {
         expect(submitButton().prop('disabled')).to.equal(true)
         expect(selectedHakukohteet().length).to.equal(1)
-        expect(invalidFieldsStatus().text()).to.equal('Tarkista 10 tietoa')
       })
     })
 
