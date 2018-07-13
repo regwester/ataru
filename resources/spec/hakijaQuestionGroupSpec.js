@@ -40,10 +40,12 @@
     describe('question group', function() {
       describe('selecting dropdown element having question group as a followup question', function() {
         before(
-          setNthFieldOption(13, 'Päätaso: B')
+          setNthFieldOption(13, 'Päätaso: B'),
+          wait.until(function() {
+            return formFields().find('.application__form-dropdown-followups .application__question-group-row').length === 1
+          })
         )
         it('shows the question group as a followup element', function() {
-          expect(formFields().find('.application__form-dropdown-followups .application__question-group-row').length).to.equal(1)
           expect(invalidFieldsStatus().text()).to.equal('Tarkista 10 tietoa')
         })
       })
