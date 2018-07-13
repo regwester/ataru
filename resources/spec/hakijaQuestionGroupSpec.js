@@ -42,7 +42,8 @@
         before(
           setNthFieldOption(13, 'Päätaso: B'),
           wait.until(function() {
-            return formFields().find('.application__form-dropdown-followups .application__question-group-row').length === 1
+            return formFields().find('.application__form-dropdown-followups .application__question-group-row').length === 1 &&
+              invalidFieldsStatus().text() === 'Tarkista 10 tietoa'
           })
         )
         it('shows the question group as a followup element', function() {

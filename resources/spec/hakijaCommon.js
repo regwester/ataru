@@ -206,3 +206,7 @@ function adjacentReadonlyAnswer(index) {
 function submitButtonEnabled() {
   return !submitButton().prop('disabled')
 }
+
+function submitButtonDisabled() {
+  return !submitButtonEnabled()
+}

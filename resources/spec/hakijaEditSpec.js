@@ -102,12 +102,17 @@
       before(
         setNthFieldInputValue(1, '420noscope'), //cannot be edited, no error!
         setNthFieldValue(23, 'textarea', ''),
-        clickNthFieldRadio(26, 'Ensimmäinen vaihtoehto')
+        clickNthFieldRadio(26, 'Ensimmäinen vaihtoehto'),
+        clickElement(invalidFieldsStatus),
+        wait.until(submitButtonDisabled),
+        wait.until(function () {
+          return invalidFieldsStatus().text() === 'Tarkista 2 tietoa'
+        })
+
       )
 
       it('shows invalidity errors', function () {
-        expect(invalidFieldsStatus().text()).to.equal('Tarkista 2 tietoa')
-        expect(submitButton().prop('disabled')).to.equal(true)
+        expect(invalidFieldNames().join(";").to.equal("Osiokysymys;Lyhyen listan kysymys"))
       })
     })
 
