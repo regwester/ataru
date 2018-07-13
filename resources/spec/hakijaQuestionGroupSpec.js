@@ -63,12 +63,14 @@
       describe('answering to a dropdown question inside a question group', function() {
         before(
           setNthFieldOption(14, 'Pudotusvalikko: A'),
-          setNthFieldOption(22, 'Pudotusvalikko: B')
+          setNthFieldOption(22, 'Pudotusvalikko: B'),
+          wait.until(function () {
+            return invalidFieldsStatus().text() === 'Tarkista 9 tietoa'
+          })
         )
         it('shows the followup question as answered', function() {
           expect(formFields().eq(14).find('.application__form-select option:selected').text()).to.equal('Pudotusvalikko: A')
           expect(formFields().eq(22).find('.application__form-select option:selected').text()).to.equal('Pudotusvalikko: B')
-          expect(invalidFieldsStatus().text()).to.equal('Tarkista 9 tietoa')
         })
       })
 

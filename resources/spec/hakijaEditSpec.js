@@ -108,11 +108,10 @@
         wait.until(function () {
           return invalidFieldsStatus().text() === 'Tarkista 2 tietoa'
         })
-
       )
 
       it('shows invalidity errors', function () {
-        expect(invalidFieldNames().join(";").to.equal("Osiokysymys;Lyhyen listan kysymys"))
+        expect(invalidFieldNames().join(";")).to.equal("Osiokysymys;Lyhyen listan kysymys")
       })
     })
 

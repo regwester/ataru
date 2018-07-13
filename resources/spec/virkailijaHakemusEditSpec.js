@@ -10,7 +10,7 @@
     describe('shows application with secret', function () {
       before(
         wait.until(function () {
-          return formSections().length == 2
+          return formSections().length == 2 && formFields().length == 31
         })
       )
       it('with complete form', function () {
