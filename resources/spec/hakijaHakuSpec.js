@@ -72,6 +72,9 @@
         clickElement(function() { return selectedHakukohteet().eq(0).find('a') }),
         wait.until(function () {
           return selectedHakukohteet().length === 0
+        }),
+        wait.until(function () {
+          return invalidFieldsStatus().text() === 'Tarkista 11 tietoa'
         })
       )
       it('removes as expected', function () {
@@ -101,11 +104,13 @@
         setNthFieldInputValue(14, '55cm'),
         wait.until(function () {
           return formFields().eq(11).find('input').val() !== ''
+        }),
+        wait.until(function () {
+          return !submitButton().prop('disabled')
         })
       )
       it('validates and shows form correctly', function () {
         expect(hakukohdeSearchInput().is(':visible')).to.equal(false)
-        expect(submitButton().prop('disabled')).to.equal(false)
         expect(selectedHakukohteet().length).to.equal(2)
         expect(invalidFieldsStatus().length).to.equal(0)
       })
