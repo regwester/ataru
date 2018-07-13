@@ -71,6 +71,9 @@
         }),
         setNthFieldInputValue(2, 'Sukunimi'),
         setNthFieldOption(3, '740'),
+        wait.until(function() {
+          return formFields().eq(4).find('label').text() === 'Onko sinulla suomalainen henkilötunnus?.'
+        }),
         setNthFieldOption(4, 'false'),
         setNthFieldInputValue(5, '1.1.1990'),
         setNthFieldOption(6, '1'),
