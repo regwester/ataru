@@ -72,11 +72,12 @@
         setNthFieldInputValue(2, 'Sukunimi'),
         setNthFieldOption(3, '740'),
         wait.until(function () {
-          console.log("x", formFields().eq(4).find('label').text(), formFields().eq(5).find('label').text())
-          return formFields().eq(4).find('label').text() === 'Onko sinulla suomalainen henkilötunnus?.' &&
-            formFields().eq(5).find('label').text() === 'Syntymäaika *.'
+          return formFields().eq(4).find('label').text() === 'Onko sinulla suomalainen henkilötunnus?.'
         }),
         setNthFieldOption(4, 'false'),
+        wait.until(function () {
+          return formFields().eq(5).find('label').text() === 'Syntymäaika *.'
+        }),
         setNthFieldInputValue(5, '1.1.1990'),
         setNthFieldOption(6, '1'),
         setNthFieldInputValue(7, 'Paramaribo, Suriname'),
