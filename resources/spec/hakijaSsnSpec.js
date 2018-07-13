@@ -87,12 +87,12 @@
         wait.until(function() {
           return formFields().eq(15).find('input').val() !== ''
         }),
-        setNthFieldOption(16, "179")
+        setNthFieldOption(16, "179"),
+        wait.until(submitButtonEnabled)
       )
 
       it('works and validates correctly', function () {
         assertInvalidFieldCount(0)()
-        expect(submitButton().prop('disabled')).to.equal(false)
       })
     });
 

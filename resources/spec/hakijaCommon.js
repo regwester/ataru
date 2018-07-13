@@ -202,3 +202,7 @@ function readonlyAnswer(index) {
 function adjacentReadonlyAnswer(index) {
   return testFrame().find('.application__readonly-adjacent-cell:eq(' + index + ')').text()
 }
+
+function submitButtonEnabled() {
+  return !submitButton().prop('disabled')
+}
