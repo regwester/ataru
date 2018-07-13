@@ -72,6 +72,7 @@
         setNthFieldInputValue(2, 'Sukunimi'),
         setNthFieldOption(3, '740'),
         wait.until(function () {
+          console.log("x", formFields().eq(4).find('label').text(), formFields().eq(5).find('label').text())
           return formFields().eq(4).find('label').text() === 'Onko sinulla suomalainen henkilötunnus?.' &&
             formFields().eq(5).find('label').text() === 'Syntymäaika *.'
         }),
