@@ -77,8 +77,9 @@
 (reg-event-fx
   :application/set-hakukohde-valid
   (fn [{:keys [db]} [_ valid?]]
-    {:db       (assoc-in db [:application :answers :hakukohteet :valid] valid?)
-     :dispatch [:application/update-answers-validity]}))
+    {:db         (assoc-in db [:application :answers :hakukohteet :valid] valid?)
+     :dispatch-n [[:application/update-answers-validity]
+                  [:application/set-validator-processed :hakukohteet]]}))
 
 (reg-event-fx
   :application/hakukohde-add-selection
