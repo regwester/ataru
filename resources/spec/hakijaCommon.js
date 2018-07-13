@@ -93,10 +93,15 @@ function setNthFieldSubInputValue(n, sub, value) {
 }
 
 function setNthFieldOption(n, value) {
-  return function() {
-    formFields().eq(n).find('option[value="'+value+'"]').prop('selected', true)
-    triggerEvent(formFields().eq(n).find('select'), 'change')
-  }
+  return wait.until(function() {
+    var $option = formFields().eq(n).find('option[value="'+value+'"]')
+    var $select = formFields().eq(n).find('select')
+    if (elementExists($option) && elementExists($select)) {
+      $option.prop('selected', true)
+      triggerEvent($select, 'change')
+      return true
+    }
+  })
 }
 
 function clickNthFieldRadio(n, value) {
