@@ -74,10 +74,11 @@
           (assoc-in [:application :remaining-hakukohde-search-results] rest-results)
           (update-in [:application :hakukohde-hits] concat more-hits)))))
 
-(reg-event-db
+(reg-event-fx
   :application/set-hakukohde-valid
-  (fn [db [_ valid?]]
-    (assoc-in db [:application :answers :hakukohteet :valid] valid?)))
+  (fn [{:keys [db]} [_ valid?]]
+    {:db       (assoc-in db [:application :answers :hakukohteet :valid] valid?)
+     :dispatch [:application/update-answers-validity]}))
 
 (reg-event-fx
   :application/hakukohde-add-selection
