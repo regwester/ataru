@@ -21,10 +21,8 @@
    ["Pohjakoulutusmoduuli" base-education-module/module]
    ["Pohjakoulutusmoduuli (kk-yhteishaku)" kk-base-education-module/module]
    ["Ilmoitus riittämättömästä pohjakoulutuksesta" component/pohjakoulutusristiriita]
-   ["Koulutusmarkkinointilupa" component/koulutusmarkkinointilupa]
-   ["Valintatuloksen julkaisulupa" component/valintatuloksen-julkaisulupa]
    ["Sähköisen asioinnin lupa" component/lupa-sahkoiseen-asiointiin]
-   ["Asiointikieli" component/asiointikieli]])
+   ["Lupatiedot" component/lupatiedot]])
 
 (def followup-toolbar-element-names
   #{"Tekstikenttä"
