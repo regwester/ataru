@@ -569,31 +569,31 @@
 
 (def virkailija-texts
   {:new-form                                 {:fi "Uusi lomake"
-                                              :sv "SV: Uusi lomake"
+                                              :sv "Ny blankett"
                                               :en "EN: Uusi lomake"}
    :copy-form                                {:fi "Kopioi lomake"
-                                              :sv "SV: Kopioi lomake"
+                                              :sv "Kopiera blanketten"
                                               :en "EN: Kopioi lomake"}
    :delete-form                              {:fi "Poista lomake"
-                                              :sv "SV: Poista lomake"
+                                              :sv "Radera blanketten"
                                               :en "EN: Poista lomake"}
    :confirm-delete                           {:fi "Vahvista poisto"
-                                              :sv "SV: Vahvista poisto"
+                                              :sv "Bekräfta raderingen"
                                               :en "EN: Vahvista poisto"}
    :forms                                    {:fi "Lomakkeet"
-                                              :sv "SV: Lomakkeet"
+                                              :sv "Blanketter"
                                               :en "EN: Lomakkeet"}
    :form-name                                {:fi "Lomakkeen nimi"
-                                              :sv "SV: Lomakkeen nimi"
+                                              :sv "Blankettens namn"
                                               :en "EN: Lomakkeen nimi"}
    :group                                    {:fi "ryhmä"
-                                              :sv "SV: ryhmä"
+                                              :sv "grupp"
                                               :en "EN: ryhmä"}
    :close                                    {:fi "sulje"
-                                              :sv "SV: sulje"
+                                              :sv "stäng"
                                               :en "EN: sulje"}
    :open                                     {:fi "avaa"
-                                              :sv "SV: avaa"
+                                              :sv "öppna"
                                               :en "EN: avaa"}
    :sections                                 {:fi "osiot"
                                               :sv "SV: osiot"
