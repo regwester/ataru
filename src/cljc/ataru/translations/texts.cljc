@@ -635,136 +635,136 @@
                                               :sv "Du kan ge flera svar"
                                               :en "EN: Vastaaja voi lisätä useita vastauksia"}
    :show-more                                {:fi "Näytä lisää.."
-                                              :sv "SV: Näytä lisää.."
+                                              :sv "Visa mera.."
                                               :en "EN: Näytä lisää.."}
    :set-haku-to-form                         {:fi "Aseta ensin lomake haun käyttöön niin voit tehdä hakukohteen mukaan näkyviä sisältöjä."
-                                              :sv "SV: Aseta ensin lomake haun käyttöön niin voit tehdä hakukohteen mukaan näkyviä sisältöjä."
+                                              :sv "Ställ först in blanketten för ansökan ifråga för att lägga till innehåll enligt ansökningsmål."
                                               :en "EN: Aseta ensin lomake haun käyttöön niin voit tehdä hakukohteen mukaan näkyviä sisältöjä."}
    :visibility-on-form                       {:fi "Näkyvyys lomakkeella:"
-                                              :sv "SV: Näkyvyys lomakkeella:"
+                                              :sv "Kan visas på blanketten:"
                                               :en "EN: Näkyvyys lomakkeella:"}
    :visible-to-all                           {:fi "näkyy kaikille"
-                                              :sv "SV: näkyy kaikille"
+                                              :sv "visas för alla"
                                               :en "EN: näkyy kaikille"}
    :visible-to-hakukohteet                   {:fi "vain valituille hakukohteille"
-                                              :sv "SV: vain valituille hakukohteille"
+                                              :sv "endast för valda ansökningsmål"
                                               :en "EN: vain valituille hakukohteille"}
    :remove                                   {:fi "Poista"
-                                              :sv "SV: Poista"
+                                              :sv "Radera"
                                               :en "EN: Poista"}
    :copy-question-id                         {:fi "Kopioi kysymyksen tunniste leikepöydälle"
-                                              :sv "SV: Kopioi kysymyksen tunniste leikepöydälle"
+                                              :sv "Kopiera frågans tagg till klippbordet"
                                               :en "EN: Kopioi kysymyksen tunniste leikepöydälle"}
    :created-by                               {:fi "Luonut"
-                                              :sv "SV: Luonut"
+                                              :sv "Bildad av"
                                               :en "EN: Luonut"}
    :last-modified-by                         {:fi "viimeksi muokannut"
-                                              :sv "SV: viimeksi muokannut"
+                                              :sv "bearbetad senast av"
                                               :en "EN: viimeksi muokannut"}
    :md-help-title                            {:fi "# otsikko (# ylin - ###### alin)"
-                                              :sv "SV: # otsikko (# högsta - ###### lägst)"
+                                              :sv "# otsikko (# högst - ###### lägst)"
                                               :en "EN: # title (# highest - ###### lowest)"}
    :md-help-bold                             {:fi "**lihavoitava sisältö**"
-                                              :sv "SV: **fetstil innehåll**"
+                                              :sv "SV: **innehåll med fetstil**"
                                               :en "EN: **bold content**"}
    :md-help-cursive                          {:fi "*kursivoitava sisältö*"
-                                              :sv "SV: *i kursiv stil*"
+                                              :sv "innehåll med kursiv stil*"
                                               :en "EN: *cursive content*"}
    :md-help-link                             {:fi "[linkin teksti](http://linkin osoite)"
-                                              :sv "SV: [länkens text](http://länkens adress)"
+                                              :sv "[länkens text](http://länkens adress)"
                                               :en "EN: [link text](http://link address)"}
    :md-help-more                             {:fi "Lisää muotoiluohjeita"
-                                              :sv "SV: Lisää muotoiluohjeita"
+                                              :sv "Lägg till anvisningar för bearbetning"
                                               :en "EN: Lisää muotoiluohjeita"}
    :info-addon                               {:fi "Kysymys sisältää ohjetekstin"
-                                              :sv "SV: Frågan sisältää ohjetekstin"
+                                              :sv "Frågan innehåller anvisningar"
                                               :en "EN: Kysymys sisältää ohjetekstin"}
    :collapse-info-text                       {:fi "Pienennä pitkä ohjeteksti"
-                                              :sv "SV: Pienennä pitkä ohjeteksti"
+                                              :sv "Förkorta anvisningarnar"
                                               :en "EN: Pienennä pitkä ohjeteksti"}
    :shape                                    {:fi "Muoto:"
-                                              :sv "SV: Muoto:"
+                                              :sv "Form:"
                                               :en "EN: Muoto:"}
    :integer                                  {:fi "kokonaisluku"
-                                              :sv "SV: heltal"
+                                              :sv "heltal"
                                               :en "EN: integer"}
    :decimals                                 {:fi "desimaalia"
-                                              :sv "SV: decimaler"
+                                              :sv "decimaler"
                                               :en "EN: decimals"}
    :only-numeric                             {:fi "Kenttään voi täyttää vain numeroita"
-                                              :sv "SV: Kenttään voi täyttää vain numeroita"
+                                              :sv "Ange endast siffror i fältet"
                                               :en "EN: Kenttään voi täyttää vain numeroita"}
    :question                                 {:fi "Kysymys"
-                                              :sv "SV: Kysymys"
+                                              :sv "Fråga"
                                               :en "EN: Kysymys"}
    :max-characters                           {:fi "Max. merkkimäärä"
-                                              :sv "SV: Max. merkkimäärä"
+                                              :sv "Maximalt antal tecken"
                                               :en "EN: Max. merkkimäärä"}
    :text-field                               {:fi "Tekstikenttä"
-                                              :sv "SV: Tekstikenttä"
+                                              :sv "Textfält"
                                               :en "EN: Tekstikenttä"}
    :text-field-size                          {:fi "Tekstikentän koko"
-                                              :sv "SV: Tekstikentän koko"
+                                              :sv "Textfältets storlek"
                                               :en "EN: Tekstikentän koko"}
    :text-area                                {:fi "Tekstialue"
-                                              :sv "SV: Tekstialue"
+                                              :sv "Textområde"
                                               :en "EN: Tekstialue"}
    :text-area-size                           {:fi "Tekstialueen koko"
-                                              :sv "SV: Tekstialueen koko"
+                                              :sv "Textområdets omfattning"
                                               :en "EN: Tekstialueen koko"}
    :custom-choice-label                      {:fi "Omat vastausvaihtoehdot"
-                                              :sv "SV: Omat vastausvaihtoehdot"
+                                              :sv "Egna svarsalternativ"
                                               :en "EN: Omat vastausvaihtoehdot"}
    :koodisto                                 {:fi "Koodisto"
-                                              :sv "SV: Koodisto"
+                                              :sv "Kodförteckning"
                                               :en "EN: Koodisto"}
    :show-options                             {:fi "Näytä vastausvaihtoehdot"
-                                              :sv "SV: Näytä vastausvaihtoehdot"
+                                              :sv "Visa svarsalternativ"
                                               :en "EN: Näytä vastausvaihtoehdot"}
    :hide-options                             {:fi "Sulje vastausvaihtoehdot"
-                                              :sv "SV: Sulje vastausvaihtoehdot"
+                                              :sv "Stäng svarsalternativen"
                                               :en "EN: Sulje vastausvaihtoehdot"}
    :dropdown                                 {:fi "Pudotusvalikko"
-                                              :sv "SV: Pudotusvalikko"
+                                              :sv "Rullgardinsmeny"
                                               :en "EN: Pudotusvalikko"}
    :single-choice-button                     {:fi "Painikkeet, yksi valittavissa"
-                                              :sv "SV: Painikkeet, yksi valittavissa"
+                                              :sv "Tryckknappar, endast en kan väljas"
                                               :en "EN: Painikkeet, yksi valittavissa"}
    :multiple-choice                          {:fi "Lista, monta valittavissa"
-                                              :sv "SV: Lista, monta valittavissa"
+                                              :sv "Förteckning, flervalsmöjlighet"
                                               :en "EN: Lista, monta valittavissa"}
    :options                                  {:fi "Vastausvaihtoehdot"
-                                              :sv "SV: Vastausvaihtoehdot"
+                                              :sv "Svarsalternativ"
                                               :en "EN: Vastausvaihtoehdot"}
    :alphabetically                           {:fi "Aakkosjärjestyksessä"
-                                              :sv "SV: Aakkosjärjestyksessä"
+                                              :sv "I alfabetisk ordning"
                                               :en "EN: Aakkosjärjestyksessä"}
    :add                                      {:fi "Lisää"
-                                              :sv "SV: Lägg till"
+                                              :sv "Lägg till"
                                               :en "EN: Add more"}
    :wrapper-element                          {:fi "Lomakeosio"
-                                              :sv "SV: Lomakeosio"
+                                              :sv "Blankettdel"
                                               :en "EN: Lomakeosio"}
    :question-group                           {:fi "Kysymysryhmä"
-                                              :sv "SV: Kysymysryhmä"
+                                              :sv "Frågegrupp"
                                               :en "EN: Kysymysryhmä"}
    :wrapper-header                           {:fi "Osion nimi"
-                                              :sv "SV: Osion nimi"
+                                              :sv "Delens namn"
                                               :en "EN: Osion nimi"}
    :group-header                             {:fi "Kysymysryhmän otsikko"
-                                              :sv "SV: Kysymysryhmän otsikko"
+                                              :sv "Frågegruppens rubrik"
                                               :en "EN: Kysymysryhmän otsikko"}
    :contains-fields                          {:fi "Sisältää kentät:"
-                                              :sv "SV: Sisältää kentät:"
+                                              :sv "Innehåller fälten:"
                                               :en "EN: Sisältää kentät:"}
    :info-element                             {:fi "Infoteksti"
-                                              :sv "SV: Infoteksti"
+                                              :sv "Infotext"
                                               :en "EN: Infoteksti"}
    :title                                    {:fi "Otsikko"
-                                              :sv "SV: Otsikko"
+                                              :sv "Rubrik"
                                               :en "EN: Otsikko"}
    :text                                     {:fi "Teksti"
-                                              :sv "SV: Teksti"
+                                              :sv "Text"
                                               :en "EN: Teksti"}
    :adjacent-fieldset                        {:fi "Vierekkäiset tekstikentät"
                                               :sv "SV: Vierekkäiset tekstikentät"
