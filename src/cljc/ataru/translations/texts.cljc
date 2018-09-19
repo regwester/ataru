@@ -640,16 +640,16 @@
                                                  :sv "Alla ansökningsmål"
                                                  :en "EN: Kaikki hakukohteet"}
    :alphabetically                              {:fi "Aakkosjärjestyksessä"
-                                                 :sv "SV: Aakkosjärjestyksessä"
+                                                 :sv "I alfabetisk ordning"
                                                  :en "EN: Aakkosjärjestyksessä"}
    :answers                                     {:fi "vastausta:"
-                                                 :sv "SV: vastausta:"
+                                                 :sv "svar:"
                                                  :en "EN: vastausta:"}
    :applicant                                   {:fi "Hakija"
-                                                 :sv "SV: Hakija"
+                                                 :sv "Sökande"
                                                  :en "EN: Hakija"}
    :applicant-will-receive-following-email      {:fi "Hakija saa allaolevan viestin sähköpostilla hakemuksen lähettämisen jälkeen lähettäjältä"
-                                                 :sv "SV: Hakija saa allaolevan viestin sähköpostilla hakemuksen lähettämisen jälkeen lähettäjältä"
+                                                 :sv "Sökanden får SV: Hakija saa allaolevan viestin sähköpostilla hakemuksen lähettämisen jälkeen lähettäjältä"
                                                  :en "EN: Hakija saa allaolevan viestin sähköpostilla hakemuksen lähettämisen jälkeen lähettäjältä"}
    :application                                 {:fi "hakemus"
                                                  :sv "SV: hakemus"
